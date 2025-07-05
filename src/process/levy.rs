@@ -4,7 +4,7 @@ use crate::process::increment::Increment;
 
 pub struct LevyProcess {
     name: String,
-    coefficients: Vec<fn(&Filtration, f64, i32) -> f64>,
+    coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>>,
     incrementors: Vec<Increment>,
 }
 
@@ -13,7 +13,7 @@ impl Process for LevyProcess {
         &self.name
     }
 
-    fn coefficients(&self) -> &Vec<fn(&Filtration, f64, i32) -> f64> {
+    fn coefficients(&self) -> &Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>> {
         &self.coefficients
     }
 
@@ -26,7 +26,7 @@ impl Process for LevyProcess {
 impl LevyProcess {
     pub fn new(
         name: String,
-        coefficients: Vec<fn(&Filtration, f64, i32) -> f64>,
+        coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>>,
         incrementors: Vec<Increment>,
     ) -> Result<Self, String> {
         if coefficients.len() != incrementors.len() {

@@ -5,9 +5,10 @@ pub mod sim;
 use polars::prelude::*;
 use plotly::{Plot, Scatter};
 use rand;
+use std::time::Instant;
 
 use crate::filtration::Filtration;
-use crate::process::{Process, levy::LevyProcess, increment::Increment};
+use crate::process::{Process, levy::LevyProcess, increment::Increment, ito::ItoProcess};
 use crate::sim::simulate;
 
 fn plot_scenarios(df: &DataFrame) -> polars::prelude::PolarsResult<()> {
@@ -34,28 +35,41 @@ fn plot_scenarios(df: &DataFrame) -> polars::prelude::PolarsResult<()> {
 
 fn main() {
     // Wiener process: X_{t+dt} - X_t = a * dt + b * sqrt(dt) * N(0,1)
-    let dt: f64 = 0.1;
+    let dt: f64 = 1.0;
     let t_start: f64 = 0.0;
     let t_end: f64 = 100.0;
-    let scenarios: i32 = 100;
+    let scenarios: i32 = 1000;
+    // let processes: Vec<Box<dyn Process>> = vec![
+    //     Box::new(LevyProcess::new(
+    //         "X1".to_string(),
+    //         vec![
+    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.005 * f.value(t, s, "X1".to_string())), 
+    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.02 * f.value(t, s, "X1".to_string())),
+    //         ],
+    //         vec![Increment::Time, Increment::Wiener],
+    //     ).unwrap()),
+    //     Box::new(LevyProcess::new(
+    //         "X2".to_string(),
+    //         vec![
+    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.005 * f.value(t, s, "X1".to_string())), 
+    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.02 * f.value(t, s, "X2".to_string())),
+    //         ],
+    //         vec![Increment::Time, Increment::Wiener],
+    //     ).unwrap())];
     let processes: Vec<Box<dyn Process>> = vec![
-        Box::new(LevyProcess::new(
-            "X1".to_string(),
-            vec![
-                |f: &Filtration, t: f64, s: i32| 0.005 * f.value(t, s, "X1".to_string()), 
-                |f: &Filtration, t: f64, s: i32| 0.02 * f.value(t, s, "X1".to_string()),
-            ],
-            vec![Increment::Time, Increment::Wiener],
-        ).unwrap()),
-        Box::new(LevyProcess::new(
-            "X2".to_string(),
-            vec![
-                |f: &Filtration, t: f64, s: i32| 0.005 * f.value(t, s, "X1".to_string()), 
-                |f: &Filtration, t: f64, s: i32| 0.02 * f.value(t, s, "X2".to_string()),
-            ],
-            vec![Increment::Time, Increment::Wiener],
-        ).unwrap())];
-    
+        Box::new(
+            ItoProcess::from_string(
+                "X1".to_string(),
+                "(0.005 * X) * dt + (0.02 * X) * dW".to_string(),
+            ).unwrap()
+        ),
+        Box::new(
+            ItoProcess::from_string(
+                "X2".to_string(),
+                "(0.001 * X) * dt + (0.02 * X) * dW".to_string(),
+            ).unwrap()
+        ),
+    ];
     let time_steps: Vec<f64> = (0..).map(|i| t_start + i as f64 * dt).take_while(|&t| t <= t_end).collect();
     let mut filtration = Filtration::new(
         time_steps.clone(),
@@ -73,6 +87,8 @@ fn main() {
         .map(|_| rand::rngs::ThreadRng::default())
         .collect();
     
+    let before = Instant::now();
+    println!("Starting simulation...");
     simulate(
         &mut filtration,
         &processes,
@@ -80,6 +96,7 @@ fn main() {
         &scenarios,
         &mut rngs,
     );
+    print!("Simulation completed in {} seconds.\n", before.elapsed().as_secs_f64());
     let df: DataFrame = filtration.to_dataframe();
     println!("{}", df);
     plot_scenarios(&df).unwrap();
