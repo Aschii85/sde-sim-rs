@@ -70,3 +70,6 @@ docs/_build/
 
 # Pyenv
 .python-version
+
+# Lock files
+Cargo.lock
