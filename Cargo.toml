@@ -9,7 +9,9 @@ name = "sde_simulators"
 crate-type = ["cdylib"]
 
 [dependencies]
+evalexpr = "12.0.2"
 meval = "0.2.0"
+mlua = { version = "0.10.5", features = ["luajit"] }
 ndarray = "0.16.1"
 once_cell = "1.21.3"
 plotly = "0.12.1"
