@@ -7,7 +7,7 @@ use plotly::{Plot, Scatter};
 use rand;
 
 use crate::filtration::Filtration;
-use crate::process::{levy::{LevyProcess, LevyLike}, increment::Increment};
+use crate::process::{Process, levy::LevyProcess, increment::Increment};
 use crate::sim::simulate;
 
 fn plot_scenarios(df: &DataFrame) -> polars::prelude::PolarsResult<()> {
@@ -38,7 +38,7 @@ fn main() {
     let t_start: f64 = 0.0;
     let t_end: f64 = 100.0;
     let scenarios: i32 = 100;
-    let processes: Vec<Box<dyn LevyLike>> = vec![
+    let processes: Vec<Box<dyn Process>> = vec![
         Box::new(LevyProcess::new(
             "X1".to_string(),
             vec![

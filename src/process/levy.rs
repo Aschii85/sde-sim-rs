@@ -1,18 +1,14 @@
-use crate::process::increment::Increment;
 use crate::filtration::Filtration;
+use crate::process::Process;
+use crate::process::increment::Increment;
 
 pub struct LevyProcess {
     name: String,
     coefficients: Vec<fn(&Filtration, f64, i32) -> f64>,
     incrementors: Vec<Increment>,
 }
-pub trait LevyLike {
-    fn name(&self) -> &String;
-    fn coefficients(&self) -> &Vec<fn(&Filtration, f64, i32) -> f64>;
-    fn incrementors(&self) -> &Vec<Increment>;
-}
 
-impl LevyLike for LevyProcess {
+impl Process for LevyProcess {
     fn name(&self) -> &String {
         &self.name
     }

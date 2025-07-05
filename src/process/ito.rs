@@ -1,5 +1,5 @@
 use crate::filtration::Filtration;
-use crate::process::levy::LevyLike;
+use crate::process::Process;
 use crate::process::increment::Increment;
 
 pub struct ItoProcess {
@@ -10,7 +10,7 @@ pub struct ItoProcess {
     incrementors: Vec<Increment>,
 }
 
-impl LevyLike for ItoProcess {
+impl Process for ItoProcess {
     fn name(&self) -> &String {
         &self.name
     }
@@ -53,3 +53,4 @@ impl ItoProcess {
         &self.diffusion
     }
 }
+

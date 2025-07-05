@@ -1,9 +1,9 @@
 use rand::Rng;
 use crate::filtration::Filtration;
-use crate::process::levy::LevyLike;
+use crate::process::Process;
 
 pub fn euler_scheme_iteration(
-    processes: &Vec<Box<dyn LevyLike>>,
+    processes: &Vec<Box<dyn Process>>,
     filtration: &mut Filtration,
     t_start: f64,
     t_end: f64,
@@ -24,7 +24,7 @@ pub fn euler_scheme_iteration(
 
 pub fn simulate(
     filtration: &mut Filtration,
-    processes: &Vec<Box<dyn LevyLike>>,
+    processes: &Vec<Box<dyn Process>>,
     time_steps: &Vec<f64>,
     scenarios: &i32,
     rngs: &mut Vec<impl Rng>,
