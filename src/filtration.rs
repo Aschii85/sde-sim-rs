@@ -1,16 +1,16 @@
-use polars;
 use ndarray::Array3;
+use polars;
 
-pub struct Filtration // Represents the state of a Markov process
+pub struct Filtration
+// Represents the state of a Markov process
 {
-    times: Vec<f64>, // List of times
-    scenarios: Vec<i32>, // List of scenario identifiers
+    times: Vec<f64>,            // List of times
+    scenarios: Vec<i32>,        // List of scenario identifiers
     process_names: Vec<String>, // List of process names
-    raw_values: Array3<f64>, // 3D array to hold values indexed by (time, scenario, process_name)
+    raw_values: Array3<f64>,    // 3D array to hold values indexed by (time, scenario, process_name)
 }
 
 impl Filtration {
-    
     pub fn new(
         times: Vec<f64>,
         scenarios: Vec<i32>,
@@ -25,7 +25,12 @@ impl Filtration {
         }
     }
 
-    fn indices(&self, time: f64, scenario: i32, process_name: &String) -> Option<(usize, usize, usize)> {
+    fn indices(
+        &self,
+        time: f64,
+        scenario: i32,
+        process_name: &String,
+    ) -> Option<(usize, usize, usize)> {
         let time_idx = self.times.iter().position(|&t| t == time)?;
         let scenario_idx = self.scenarios.iter().position(|&s| s == scenario)?;
         let process_idx = self.process_names.iter().position(|n| n == process_name)?;
@@ -63,6 +68,7 @@ impl Filtration {
             "scenario" => scenario,
             "process_name" => process_name,
             "value" => value,
-        ].expect("Failed to create DataFrame")
+        ]
+        .expect("Failed to create DataFrame")
     }
 }

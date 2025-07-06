@@ -22,7 +22,6 @@ impl Process for LevyProcess {
     }
 }
 
-
 impl LevyProcess {
     pub fn new(
         name: String,

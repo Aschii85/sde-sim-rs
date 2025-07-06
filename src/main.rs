@@ -3,19 +3,18 @@ pub mod filtration;
 pub mod process;
 pub mod sim;
 
-use polars::prelude::*;
 use plotly::{
-    common::{DashType, Line},
     Plot, Scatter,
+    common::{DashType, Line},
 };
+use polars::prelude::*;
 use rand;
 use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::filtration::Filtration;
-use crate::process::{Process, levy::LevyProcess, increment::Increment, ito::ItoProcess};
+use crate::process::{Process, increment::Increment, ito::ItoProcess, levy::LevyProcess};
 use crate::sim::simulate;
-
 
 fn plot_scenarios(df: &DataFrame) -> polars::prelude::PolarsResult<()> {
     let mut plot = Plot::new();
@@ -92,7 +91,7 @@ fn main() {
     //     Box::new(LevyProcess::new(
     //         "X1".to_string(),
     //         vec![
-    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.005 * f.value(t, s, "X1".to_string())), 
+    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.005 * f.value(t, s, "X1".to_string())),
     //             Box::new(|f: &Filtration, t: f64, s: i32| 0.02 * f.value(t, s, "X1".to_string())),
     //         ],
     //         vec![Increment::Time, Increment::Wiener],
@@ -100,7 +99,7 @@ fn main() {
     //     Box::new(LevyProcess::new(
     //         "X2".to_string(),
     //         vec![
-    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.001 * f.value(t, s, "X2".to_string())), 
+    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.001 * f.value(t, s, "X2".to_string())),
     //             Box::new(|f: &Filtration, t: f64, s: i32| 0.02 * f.value(t, s, "X2".to_string())),
     //         ],
     //         vec![Increment::Time, Increment::Wiener],
@@ -110,16 +109,21 @@ fn main() {
             ItoProcess::from_string(
                 "X1".to_string(),
                 "(0.005 * X) * dt + (0.02 * X) * dW".to_string(),
-            ).unwrap()
+            )
+            .unwrap(),
         ),
         Box::new(
             ItoProcess::from_string(
                 "X2".to_string(),
                 "(0.001 * X) * dt + (0.02 * X) * dW".to_string(),
-            ).unwrap()
+            )
+            .unwrap(),
         ),
     ];
-    let time_steps: Vec<f64> = (0..).map(|i| t_start + i as f64 * dt).take_while(|&t| t <= t_end).collect();
+    let time_steps: Vec<f64> = (0..)
+        .map(|i| t_start + i as f64 * dt)
+        .take_while(|&t| t <= t_end)
+        .collect();
     let mut filtration = Filtration::new(
         time_steps.clone(),
         (1..=scenarios).collect(),
@@ -135,7 +139,7 @@ fn main() {
     let mut rngs: Vec<rand::rngs::ThreadRng> = (0..processes.len())
         .map(|_| rand::rngs::ThreadRng::default())
         .collect();
-    
+
     let before = Instant::now();
     println!("Starting simulation...");
     simulate(
@@ -145,7 +149,10 @@ fn main() {
         &scenarios,
         &mut rngs,
     );
-    print!("Simulation completed in {} seconds.\n", before.elapsed().as_secs_f64());
+    print!(
+        "Simulation completed in {} seconds.\n",
+        before.elapsed().as_secs_f64()
+    );
     let df: DataFrame = filtration.to_dataframe();
     println!("{}", df);
     plot_scenarios(&df).unwrap();

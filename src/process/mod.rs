@@ -1,5 +1,5 @@
-pub mod ito;
 pub mod increment;
+pub mod ito;
 pub mod levy;
 
 use crate::filtration::Filtration;

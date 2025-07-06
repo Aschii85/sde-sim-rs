@@ -33,14 +33,11 @@ impl ItoProcess {
         diffusion: Box<dyn Fn(&Filtration, f64, i32) -> f64>,
     ) -> Result<Self, String> {
         let coefficients = vec![drift, diffusion];
-        let incrementors = vec![
-            Increment::Time,
-            Increment::Wiener,
-        ];
+        let incrementors = vec![Increment::Time, Increment::Wiener];
         Ok(ItoProcess {
             name,
             coefficients,
-            incrementors
+            incrementors,
         })
     }
 
@@ -64,15 +61,20 @@ impl ItoProcess {
         // It looks for patterns like "(expression) * dt" or "(expression) * dW".
         let re = Regex::new(r"\(((?:[^()]+|\((?R)\))*)\)\s*\*\s*(d[tW]\w*)")
             .map_err(|e| format!("Failed to compile regex: {}", e))?;
-        let mut terms_map: HashMap<String, Box<dyn Fn(&Filtration, f64, i32) -> f64>> = HashMap::new();
+        let mut terms_map: HashMap<String, Box<dyn Fn(&Filtration, f64, i32) -> f64>> =
+            HashMap::new();
         for caps in re.captures_iter(&equation.clone()) {
             let _name = name.clone(); // Clone the name to use in the closure
             let expression_str = caps.get(1).map_or("", |m| m.as_str()).to_string();
-            let expression = evalexpr::build_operator_tree::<evalexpr::DefaultNumericTypes>(&expression_str).unwrap();
-            let exp_fun = Box::new(move|f: &Filtration, t: f64, s: i32| {
-                let context: evalexpr::HashMapContext::<evalexpr::DefaultNumericTypes>= evalexpr::context_map! {
-                    "X" => float f.value(t, s, _name.clone()), 
-                }.unwrap();
+            let expression =
+                evalexpr::build_operator_tree::<evalexpr::DefaultNumericTypes>(&expression_str)
+                    .unwrap();
+            let exp_fun = Box::new(move |f: &Filtration, t: f64, s: i32| {
+                let context: evalexpr::HashMapContext<evalexpr::DefaultNumericTypes> =
+                    evalexpr::context_map! {
+                        "X" => float f.value(t, s, _name.clone()),
+                    }
+                    .unwrap();
                 expression.eval_float_with_context(&context).unwrap()
             });
             // Box the closure before inserting into the HashMap
@@ -97,4 +99,17 @@ impl ItoProcess {
     pub fn diffusion(&self) -> &Box<dyn Fn(&Filtration, f64, i32) -> f64> {
         &self.coefficients[1]
     }
+}
+
+/// Factory Functions for Specific Ito Processes
+// These functions create specific instances of ItoProcess with predefined drift and diffusion coefficients.
+// They are prefered  over using `from_string` for common processes, as they are more efficient
+// computationally (around 2/4-times faster for meval/luajit).
+pub fn geometric_brownian_motion(name: String, mu: f64, sigma: f64) -> ItoProcess {
+    let _name = name.clone();
+    let drift = Box::new(move |f: &Filtration, t: f64, s: i32| mu * f.value(t, s, _name.clone()));
+    let _name = name.clone();
+    let diffusion =
+        Box::new(move |f: &Filtration, t: f64, s: i32| sigma * f.value(t, s, _name.clone()));
+    ItoProcess::new(name.clone(), drift, diffusion).unwrap()
 }
