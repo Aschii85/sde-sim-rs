@@ -41,21 +41,7 @@ impl ItoProcess {
         })
     }
 
-    /// Creates an `ItoProcess` instance by parsing a string equation.
-    /// This method uses `mlua` (LuaJIT) to evaluate the expressions.
-    ///
-    /// The equation string should be in the format `"(expression_for_drift) * dt + (expression_for_diffusion) * dW"`.
-    /// Variables `X`, `t`, and `s` can be used in the expressions, where:
-    /// - `X` represents `f.value(t, s, self.name())`
-    /// - `t` represents the current time
-    /// - `s` represents the current state/sample index
-    ///
-    /// # Arguments
-    /// * `name` - The name of the process.
-    /// * `equation` - The string representation of the Ito process equation.
-    ///
-    /// # Returns
-    /// A `Result` indicating success (`ItoProcess`) or failure (`String` error message).
+    // TODO: expand regex and conversion of expr string to support more complex expressions.
     pub fn from_string(name: String, equation: String) -> Result<Self, String> {
         // Regex to capture expressions and their corresponding terms (e.g., "dt", "dW").
         // It looks for patterns like "(expression) * dt" or "(expression) * dW".

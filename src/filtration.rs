@@ -1,5 +1,6 @@
 use ndarray::Array3;
 use polars;
+use std::collections::HashMap;
 
 pub struct Filtration
 // Represents the state of a Markov process
@@ -16,13 +17,21 @@ impl Filtration {
         scenarios: Vec<i32>,
         process_names: Vec<String>,
         raw_values: Array3<f64>,
+        initial_values: Option<HashMap<String, f64>>,
     ) -> Self {
-        Filtration {
+        let mut f = Filtration {
             times,
             scenarios,
             process_names,
             raw_values,
+        };
+        match initial_values {
+            Some(values) => {
+                f.set_initial_values(values);
+            }
+            None => {}
         }
+        f
     }
 
     fn indices(
@@ -45,6 +54,22 @@ impl Filtration {
     pub fn set_value(&mut self, time: f64, scenario: i32, process_name: String, new_value: f64) {
         let idx = self.indices(time, scenario, &process_name).unwrap();
         self.raw_values[idx] = new_value;
+    }
+
+    pub fn set_initial_values(&mut self, values: HashMap<String, f64>) {
+        let initial_time = self.times[0].clone();
+        let scenarios = self.scenarios.clone();
+        let process_names = self.process_names.clone();
+        for scenario in scenarios.iter() {
+            for process_name in process_names.iter() {
+                self.set_value(
+                    initial_time,
+                    *scenario,
+                    process_name.clone(),
+                    values[process_name.as_str()],
+                );
+            }
+        }
     }
 
     /// Converts this Filtration into a Polars DataFrame

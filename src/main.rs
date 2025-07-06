@@ -129,11 +129,11 @@ fn main() {
         (1..=scenarios).collect(),
         processes.iter().map(|p| p.name().clone()).collect(),
         ndarray::Array3::<f64>::zeros((time_steps.len(), scenarios as usize, processes.len())),
+        Some(HashMap::from([
+            ("X1".to_string(), 1.0),
+            ("X2".to_string(), 0.5),
+        ])),
     );
-    for scenario in 1..=scenarios {
-        filtration.set_value(t_start, scenario, "X1".to_string(), 1.0);
-        filtration.set_value(t_start, scenario, "X2".to_string(), 0.5);
-    }
 
     // Create a Vec of ThreadRngs, each owned and mutable
     let mut rngs: Vec<rand::rngs::ThreadRng> = (0..processes.len())
