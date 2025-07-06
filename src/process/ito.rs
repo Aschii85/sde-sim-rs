@@ -1,7 +1,6 @@
-use mlua::{Lua, Function};
+use evalexpr;
 use regex::Regex;
 use std::collections::HashMap;
-use std::rc::Rc; // For shared ownership of the Lua state in a single-threaded context
 
 use crate::filtration::Filtration;
 use crate::process::Process;
@@ -65,55 +64,20 @@ impl ItoProcess {
         // It looks for patterns like "(expression) * dt" or "(expression) * dW".
         let re = Regex::new(r"\(((?:[^()]+|\((?R)\))*)\)\s*\*\s*(d[tW]\w*)")
             .map_err(|e| format!("Failed to compile regex: {}", e))?;
-
-        // Create a single Lua instance for this ItoProcess.
-        // Rc is used to allow multiple closures to share ownership of the Lua state
-        // in a single-threaded context.
-        let lua = Rc::new(Lua::new());
         let mut terms_map: HashMap<String, Box<dyn Fn(&Filtration, f64, i32) -> f64>> = HashMap::new();
-
-        // Iterate over all matches in the equation string.
-        for caps in re.captures_iter(&equation) {
+        for caps in re.captures_iter(&equation.clone()) {
+            let _name = name.clone(); // Clone the name to use in the closure
             let expression_str = caps.get(1).map_or("", |m| m.as_str()).to_string();
-            let term = caps.get(2).map_or("", |m| m.as_str());
-            let closure_process_name = name.clone(); // Clone the process name for use in the closure
-            let current_lua = Rc::clone(&lua); // Clone the Rc to capture in the upcoming closure
-
-            // Compile the Lua expression into a `mlua::Function` once.
-            // This function will be reused for every evaluation, improving performance.
-            // We wrap the expression in 'return' to make it a valid Lua chunk that returns a value.
-            let compiled_function: Function = current_lua.load(&format!("return {}", expression_str))
-                .into_function()
-                .map_err(|e| format!("Failed to compile Lua expression '{}': {}", expression_str, e))?;
-
-            // Create a boxed closure for each term (drift or diffusion).
-            // This closure will be responsible for evaluating the Lua expression
-            // with the current filtration, time, and state.
-            let exp_fun = move |f: &Filtration, t: f64, s: i32| {
-                // Get a reference to the shared Lua state.
-                let lua_ref = &current_lua;
-
-                // Set the variables 'X', 't', and 's' in the Lua global environment.
-                // The compiled Lua function will then be able to access these variables.
-                lua_ref.globals().set("X", f.value(t, s, closure_process_name.clone()))
-                    .expect("Failed to set X variable in Lua");
-                lua_ref.globals().set("t", t)
-                    .expect("Failed to set t variable in Lua");
-                lua_ref.globals().set("s", s)
-                    .expect("Failed to set s variable in Lua");
-
-                // Call the pre-compiled Lua function.
-                // It takes no direct arguments as it relies on the global variables set above.
-                match compiled_function.call::<f64>(()) { // Corrected call syntax
-                    Ok(result) => result,
-                    Err(e) => {
-                        // Log the error and panic, consistent with the original `meval` behavior.
-                        eprintln!("Failed to evaluate Lua expression '{}' at t={}, s={}: {}", expression_str, t, s, e);
-                        panic!("Failed to evaluate Lua expression: {}", e);
-                    }
-                }
-            };
-            terms_map.insert(term.to_string(), Box::new(exp_fun));
+            let expression = evalexpr::build_operator_tree::<evalexpr::DefaultNumericTypes>(&expression_str).unwrap();
+            let exp_fun = Box::new(move|f: &Filtration, t: f64, s: i32| {
+                let context: evalexpr::HashMapContext::<evalexpr::DefaultNumericTypes>= evalexpr::context_map! {
+                    "X" => float f.value(t, s, _name.clone()), 
+                }.unwrap();
+                expression.eval_float_with_context(&context).unwrap()
+            });
+            // Box the closure before inserting into the HashMap
+            let term = caps.get(2).map_or("", |m| m.as_str()).to_string();
+            terms_map.insert(term, exp_fun);
         }
 
         // Retrieve the drift and diffusion closures from the map.

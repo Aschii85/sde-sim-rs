@@ -1,41 +1,90 @@
+#![allow(unused_imports)]
 pub mod filtration;
 pub mod process;
 pub mod sim;
 
 use polars::prelude::*;
-use plotly::{Plot, Scatter};
+use plotly::{
+    common::{DashType, Line},
+    Plot, Scatter,
+};
 use rand;
+use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::filtration::Filtration;
 use crate::process::{Process, levy::LevyProcess, increment::Increment, ito::ItoProcess};
 use crate::sim::simulate;
 
+
 fn plot_scenarios(df: &DataFrame) -> polars::prelude::PolarsResult<()> {
     let mut plot = Plot::new();
+
+    // Get the columns as Series
     let scenario_col = df.column("scenario")?.i32()?;
-    let max_scenario = scenario_col.max().unwrap();
+    let time_col = df.column("time")?.f64()?;
+    let value_col = df.column("value")?.f64()?;
+    let process_name_col = df.column("process_name")?.str()?; // Corrected: Using .utf8() for string column
+
+    // Determine unique scenarios and process names
+    let max_scenario = scenario_col.max().unwrap_or(0);
+    let unique_process_names: Vec<&str> = process_name_col
+        .into_iter()
+        .filter_map(|s| s)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    // Define the mapping from process_name to DashType
+    let dash_map: HashMap<&str, DashType> = [
+        ("X1", DashType::Solid),
+        ("X2", DashType::Dot),
+        ("X3", DashType::Dash),
+        ("X4", DashType::LongDash),
+        ("X5", DashType::DashDot),
+        ("X6", DashType::LongDashDot),
+        // Add more mappings as needed
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
     for scenario in 1..=max_scenario {
-        let mask = scenario_col.equal(scenario);
-        let time: Vec<f64> = df.column("time")?.f64()?.into_no_null_iter()
-            .zip(mask.into_no_null_iter())
-            .filter_map(|(t, m)| if m { Some(t) } else { None })
-            .collect();
-        let state: Vec<f64> = df.column("value")?.f64()?.into_no_null_iter()
-            .zip(mask.into_no_null_iter())
-            .filter_map(|(s, m)| if m { Some(s) } else { None })
-            .collect();
-        let trace = Scatter::new(time, state).name(format!("Scenario {}", scenario));
-        plot.add_trace(trace);
+        let scenario_mask = scenario_col.equal(scenario);
+        for process_name in &unique_process_names {
+            let process_mask = process_name_col.equal(*process_name);
+            let combined_mask = &scenario_mask & &process_mask;
+            // Apply the mask to get filtered data
+            // Removed the redundant .f64()? calls here
+            let time: Vec<f64> = time_col
+                .filter(&combined_mask)?
+                .into_no_null_iter()
+                .collect();
+            let value: Vec<f64> = value_col
+                .filter(&combined_mask)?
+                .into_no_null_iter()
+                .collect();
+            if time.is_empty() {
+                continue; // Skip if no data for this combination
+            }
+
+            // Get the dash type from the map, default to Solid if not found
+            let dash_type = dash_map.get(process_name).unwrap_or(&DashType::Solid);
+            let trace = Scatter::new(time, value)
+                .name(format!("Scenario {} - {}", scenario, process_name))
+                .line(Line::new().dash(dash_type.clone())); // Apply the dash type
+            plot.add_trace(trace);
+        }
     }
+
     plot.write_html("sandbox/output.html");
-    println!("Plot saved to output.html");
+    println!("Plot with dash types saved to output_with_dash.html");
     Ok(())
 }
 
 fn main() {
     // Wiener process: X_{t+dt} - X_t = a * dt + b * sqrt(dt) * N(0,1)
-    let dt: f64 = 1.0;
+    let dt: f64 = 0.1;
     let t_start: f64 = 0.0;
     let t_end: f64 = 100.0;
     let scenarios: i32 = 1000;
@@ -51,7 +100,7 @@ fn main() {
     //     Box::new(LevyProcess::new(
     //         "X2".to_string(),
     //         vec![
-    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.005 * f.value(t, s, "X1".to_string())), 
+    //             Box::new(|f: &Filtration, t: f64, s: i32| 0.001 * f.value(t, s, "X2".to_string())), 
     //             Box::new(|f: &Filtration, t: f64, s: i32| 0.02 * f.value(t, s, "X2".to_string())),
     //         ],
     //         vec![Increment::Time, Increment::Wiener],
