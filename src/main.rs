@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::filtration::Filtration;
-use crate::process::{Process, increment::Increment, ito::ItoProcess, levy::LevyProcess};
+use crate::process::{Process, ito::ItoProcess, levy::LevyProcess};
 use crate::sim::simulate;
 
 fn plot_scenarios(df: &DataFrame) -> polars::prelude::PolarsResult<()> {
@@ -104,7 +104,7 @@ fn main() {
     //         ],
     //         vec![Increment::Time, Increment::Wiener],
     //     ).unwrap())];
-    let processes: Vec<Box<dyn Process>> = vec![
+    let mut processes: Vec<Box<dyn Process>> = vec![
         Box::new(
             ItoProcess::from_string(
                 "X1".to_string(),
@@ -144,7 +144,7 @@ fn main() {
     println!("Starting simulation...");
     simulate(
         &mut filtration,
-        &processes,
+        &mut processes,
         &time_steps,
         &scenarios,
         &mut rngs,

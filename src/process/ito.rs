@@ -4,12 +4,12 @@ use std::collections::HashMap;
 
 use crate::filtration::Filtration;
 use crate::process::Process;
-use crate::process::increment::Increment;
+use crate::process::increment::{Incrementor, TimeIncrementor, WienerIncrementor};
 
 pub struct ItoProcess {
     name: String,
     coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>>,
-    incrementors: Vec<Increment>,
+    incrementors: Vec<Box<dyn Incrementor>>,
 }
 
 impl Process for ItoProcess {
@@ -21,8 +21,8 @@ impl Process for ItoProcess {
         &self.coefficients
     }
 
-    fn incrementors(&self) -> &Vec<Increment> {
-        &self.incrementors
+    fn incrementors(&mut self) -> &mut Vec<Box<dyn Incrementor>> {
+        &mut self.incrementors
     }
 }
 
@@ -33,7 +33,10 @@ impl ItoProcess {
         diffusion: Box<dyn Fn(&Filtration, f64, i32) -> f64>,
     ) -> Result<Self, String> {
         let coefficients = vec![drift, diffusion];
-        let incrementors = vec![Increment::Time, Increment::Wiener];
+        let incrementors: Vec<Box<dyn Incrementor>> = vec![
+            Box::new(TimeIncrementor::new()),
+            Box::new(WienerIncrementor::new()),
+        ];
         Ok(ItoProcess {
             name,
             coefficients,

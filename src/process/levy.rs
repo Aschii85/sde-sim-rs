@@ -1,11 +1,11 @@
 use crate::filtration::Filtration;
 use crate::process::Process;
-use crate::process::increment::Increment;
+use crate::process::increment::Incrementor;
 
 pub struct LevyProcess {
     name: String,
     coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>>,
-    incrementors: Vec<Increment>,
+    incrementors: Vec<Box<dyn Incrementor>>,
 }
 
 impl Process for LevyProcess {
@@ -17,8 +17,8 @@ impl Process for LevyProcess {
         &self.coefficients
     }
 
-    fn incrementors(&self) -> &Vec<Increment> {
-        &self.incrementors
+    fn incrementors(&mut self) -> &mut Vec<Box<dyn Incrementor>> {
+        &mut self.incrementors
     }
 }
 
@@ -26,7 +26,7 @@ impl LevyProcess {
     pub fn new(
         name: String,
         coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>>,
-        incrementors: Vec<Increment>,
+        incrementors: Vec<Box<dyn Incrementor>>,
     ) -> Result<Self, String> {
         if coefficients.len() != incrementors.len() {
             return Err("coefficients and incrementors must have the same length".to_string());
