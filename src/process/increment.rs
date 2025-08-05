@@ -4,6 +4,7 @@ use rand::RngCore;
 use rand::distributions::Distribution;
 use statrs::distribution::Normal;
 use std::num::NonZeroUsize;
+use std::sync::{Arc, Mutex};
 
 // Use a standard normal distribution for Wiener process sampling
 static NORMAL_STD: Lazy<Normal> = Lazy::new(|| Normal::standard());
@@ -26,6 +27,7 @@ impl TimeIncrementor {
     }
 }
 
+#[derive(Clone)]
 pub struct WienerIncrementor {
     cache: LruCache<(i32, i64, i64), f64>,
 }
@@ -51,5 +53,13 @@ impl WienerIncrementor {
         Self {
             cache: LruCache::new(capacity),
         }
+    }
+}
+
+// Allow shared ownership of WienerIncrementor via Arc<Mutex<WienerIncrementor>>
+impl Incrementor for Arc<Mutex<WienerIncrementor>> {
+    fn sample(&mut self, scenario: i32, t_start: f64, t_end: f64, rng: &mut dyn RngCore) -> f64 {
+        let mut guard = self.lock().unwrap();
+        guard.sample(scenario, t_start, t_end, rng)
     }
 }

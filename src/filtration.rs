@@ -62,12 +62,8 @@ impl Filtration {
         let process_names = self.process_names.clone();
         for scenario in scenarios.iter() {
             for process_name in process_names.iter() {
-                self.set_value(
-                    initial_time,
-                    *scenario,
-                    process_name.clone(),
-                    values[process_name.as_str()],
-                );
+                let val = values.get(process_name.as_str()).copied().unwrap_or(0.0);
+                self.set_value(initial_time, *scenario, process_name.clone(), val);
             }
         }
     }
