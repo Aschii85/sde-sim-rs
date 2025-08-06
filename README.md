@@ -17,7 +17,7 @@ Flexibility: The library's design and modular architecture allows for the creati
 Install the latest `sde-sim-rs` version with:
 
 ```
-pip install polars
+pip install sde-sim-rs
 ```
 
 Requires Python version >=3.11.
@@ -39,7 +39,7 @@ uv run python/sde_simulators/example.py
 You can take latest release from crates.io, or if you want to use the latest features / performance improvements point to the main branch of this repo.
 
 ```
-polars = { git = "https://github.com/pola-rs/polars", rev = "<optional git tag>" }
+polars = { git = "https://github.com/Aschii85/sde-sim-rs", rev = "<optional git tag>" }
 ```
 
 ## Contributing
