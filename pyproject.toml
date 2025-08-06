@@ -8,8 +8,25 @@ requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dynamic = ["version"]
+dependencies = [
+    "numpy>=1.24.4",
+    "patchelf>=0.17.2.2",
+    "plotly>=6.2.0",
+    "polars>=1.8.2",
+]
 [tool.maturin]
 features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "sde_simulators"
+include = [
+    "python/sde_simulators/sde_simulators.pyi", 
+    "python/sde_simulators/py.typed",
+]
