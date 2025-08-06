@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::filtration::Filtration;
-use crate::process::levy::parse_equations;
+use crate::process::util::parse_equations;
 use crate::process::{Process, ito::ItoProcess, levy::LevyProcess};
 use crate::sim::simulate;
 

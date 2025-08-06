@@ -17,7 +17,7 @@ pub fn simulate_py(
 ) -> PyResult<PyDataFrame> {
     // Use parse_equations from levy.rs
     let levy_processes =
-        crate::process::levy::parse_equations(&processes_equations).map_err(|e| {
+        crate::process::util::parse_equations(&processes_equations).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                 "Failed to parse process equations: {}",
                 e

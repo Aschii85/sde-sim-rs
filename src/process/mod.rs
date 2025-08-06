@@ -1,6 +1,7 @@
 pub mod increment;
 pub mod ito;
 pub mod levy;
+pub mod util;
 
 use crate::filtration::Filtration;
 use crate::process::increment::Incrementor;
