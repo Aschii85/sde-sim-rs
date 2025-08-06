@@ -3,7 +3,7 @@ requires = ["maturin>=1.9,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "sde-simulators"
+name = "sde-sim-rs"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
@@ -25,10 +25,10 @@ dependencies = [
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
-module-name = "sde_simulators"
+module-name = "sde_sim_rs"
 include = [
-    "python/sde_simulators/sde_simulators.pyi", 
-    "python/sde_simulators/py.typed",
+    "python/sde_sim_rs/sde_sim_rs.pyi", 
+    "python/sde_sim_rs/py.typed",
 ]
 
 [dependency-groups]

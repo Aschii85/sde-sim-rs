@@ -59,7 +59,7 @@ pub fn simulate_py(
 }
 
 #[pymodule]
-fn sde_simulators(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn sde_sim_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(simulate_py, m)?)?;
     Ok(())
 }

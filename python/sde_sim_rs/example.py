@@ -1,12 +1,12 @@
-import sde_simulators
+import sde_sim_rs
 import numpy as np
 import plotly.express as px
 
-print(dir(sde_simulators))
+print(dir(sde_sim_rs))
 
 
 def main():
-    df = sde_simulators.simulate(
+    df = sde_sim_rs.simulate(
         processes_equations=["dX1 = ( 0.01 * X1 ) * dt + ( 0.2 * X1 ) * dW1"],
         time_steps=list(np.arange(0.0, 100.0, 0.1)),
         scenarios=1000,

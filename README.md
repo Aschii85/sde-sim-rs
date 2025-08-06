@@ -31,7 +31,7 @@ maturin develop --uv --release
 After the compilation is complete, you can run the example to see how the library works. This command uses `uv` to execute the Python example script.
 
 ```
-uv run python/sde_simulators/example.py
+uv run python/sde_sim_rs/example.py
 ```
 
 ### Rust

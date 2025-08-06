@@ -1,11 +1,11 @@
 [package]
-name = "sde-simulators"
+name = "sde-sim-rs"
 version = "0.1.0"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "sde_simulators"
+name = "sde_sim_rs"
 crate-type = ["cdylib"]
 
 [dependencies]
