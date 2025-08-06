@@ -1,10 +1,11 @@
 use crate::filtration::Filtration;
+use ordered_float::OrderedFloat;
 use crate::process::Process;
 use crate::process::increment::Incrementor;
 
 pub struct LevyProcess {
     name: String,
-    coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>>,
+    coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>>,
     incrementors: Vec<Box<dyn Incrementor>>,
 }
 
@@ -13,7 +14,7 @@ impl Process for LevyProcess {
         &self.name
     }
 
-    fn coefficients(&self) -> &Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>> {
+    fn coefficients(&self) -> &Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>> {
         &self.coefficients
     }
 
@@ -25,7 +26,7 @@ impl Process for LevyProcess {
 impl LevyProcess {
     pub fn new(
         name: String,
-        coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>>,
+        coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>>,
         incrementors: Vec<Box<dyn Incrementor>>,
     ) -> Result<Self, String> {
         if coefficients.len() != incrementors.len() {

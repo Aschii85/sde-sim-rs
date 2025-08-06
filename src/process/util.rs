@@ -1,9 +1,10 @@
 use crate::filtration::Filtration;
 use crate::process::increment::{Incrementor, TimeIncrementor, WienerIncrementor};
-use crate::process::{Process, levy::LevyProcess};
+use crate::process::levy::LevyProcess;
 use evalexpr;
 use evalexpr::ContextWithMutableVariables;
 use lazy_static::lazy_static;
+use ordered_float::OrderedFloat;
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -27,7 +28,7 @@ fn parse_equation(equation: &str) -> Result<LevyProcess, String> {
     // 2. Regex to capture coefficient expressions and their corresponding differentials (e.g., "dt", "dW1").
     let term_re = Regex::new(r"\(((?:[^()]+|\((?R)\))*)\)\s*\*\s*(d[tWa-zA-Z0-9_]+)").unwrap();
 
-    let mut coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>> = Vec::new();
+    let mut coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>> = Vec::new();
     let mut term_names: Vec<String> = Vec::new();
 
     for caps in term_re.captures_iter(equation) {
@@ -40,18 +41,18 @@ fn parse_equation(equation: &str) -> Result<LevyProcess, String> {
                 .map_err(|e| format!("Failed to parse expression '{}': {}", expression_str, e))?;
 
         let process_name = name.clone();
-        let coeff_fn = Box::new(move |f: &Filtration, t: f64, s: i32| {
+        let coeff_fn = Box::new(move |f: &Filtration, t: OrderedFloat<f64>, s: i32| {
             use evalexpr::Value;
             let mut context = evalexpr::HashMapContext::new();
             // Set the variable for this process (e.g., X1, X2, ...)
             context
                 .set_value(
                     process_name.clone(),
-                    Value::from_float(f.value(t, s, process_name.clone()).unwrap()),
+                    Value::from_float(f.value(t, s, &process_name).unwrap()),
                 )
                 .ok();
             context
-                .set_value("t".to_string(), Value::from_float(t))
+                .set_value("t".to_string(), Value::from_float(t.0))
                 .ok();
             expression.eval_float_with_context(&context).unwrap_or(0.0)
         });

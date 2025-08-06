@@ -1,10 +1,11 @@
 use crate::filtration::Filtration;
+use ordered_float::OrderedFloat;
 use crate::process::Process;
 use crate::process::increment::{Incrementor, TimeIncrementor, WienerIncrementor};
 
 pub struct ItoProcess {
     name: String,
-    coefficients: Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>>,
+    coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>>,
     incrementors: Vec<Box<dyn Incrementor>>,
 }
 
@@ -13,7 +14,7 @@ impl Process for ItoProcess {
         &self.name
     }
 
-    fn coefficients(&self) -> &Vec<Box<dyn Fn(&Filtration, f64, i32) -> f64>> {
+    fn coefficients(&self) -> &Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>> {
         &self.coefficients
     }
 
@@ -25,8 +26,8 @@ impl Process for ItoProcess {
 impl ItoProcess {
     pub fn new(
         name: String,
-        drift: Box<dyn Fn(&Filtration, f64, i32) -> f64>,
-        diffusion: Box<dyn Fn(&Filtration, f64, i32) -> f64>,
+        drift: Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>,
+        diffusion: Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>,
     ) -> Result<Self, String> {
         let coefficients = vec![drift, diffusion];
         let incrementors: Vec<Box<dyn Incrementor>> = vec![
@@ -40,11 +41,11 @@ impl ItoProcess {
         })
     }
 
-    pub fn drift(&self) -> &Box<dyn Fn(&Filtration, f64, i32) -> f64> {
+    pub fn drift(&self) -> &Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64> {
         &self.coefficients[0]
     }
 
-    pub fn diffusion(&self) -> &Box<dyn Fn(&Filtration, f64, i32) -> f64> {
+    pub fn diffusion(&self) -> &Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64> {
         &self.coefficients[1]
     }
 }

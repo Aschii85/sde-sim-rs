@@ -1,3 +1,4 @@
+use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use pyo3::prelude::*;
 use pyo3_polars::PyDataFrame;
@@ -27,11 +28,17 @@ pub fn simulate_py(
         .into_iter()
         .map(|p| Box::new(p) as Box<dyn Process>)
         .collect();
+    let time_steps_ordered: Vec<OrderedFloat<f64>> =
+        time_steps.iter().copied().map(OrderedFloat).collect();
     let mut filtration = Filtration::new(
-        time_steps.clone(),
+        time_steps_ordered.clone(),
         (1..=scenarios).collect(),
         processes.iter().map(|p| p.name().clone()).collect(),
-        ndarray::Array3::<f64>::zeros((time_steps.len(), scenarios as usize, processes.len())),
+        ndarray::Array3::<f64>::zeros((
+            time_steps_ordered.len(),
+            scenarios as usize,
+            processes.len(),
+        )),
         Some(initial_values),
     );
 
@@ -43,7 +50,7 @@ pub fn simulate_py(
     simulate(
         &mut filtration,
         &mut processes,
-        &time_steps,
+        &time_steps_ordered,
         &scenarios,
         &mut rngs,
     );

@@ -3,6 +3,7 @@ pub mod filtration;
 pub mod process;
 pub mod sim;
 
+use ordered_float::OrderedFloat;
 use plotly::{
     Plot, Scatter,
     common::{DashType, Line},
@@ -96,9 +97,9 @@ fn main() {
         .into_iter()
         .map(|p| Box::new(p) as Box<dyn Process>)
         .collect();
-    let time_steps: Vec<f64> = (0..)
-        .map(|i| t_start + i as f64 * dt)
-        .take_while(|&t| t <= t_end)
+    let time_steps: Vec<OrderedFloat<f64>> = (0..)
+        .map(|i| OrderedFloat(t_start + i as f64 * dt))
+        .take_while(|t| t.0 <= t_end)
         .collect();
     let mut filtration = Filtration::new(
         time_steps.clone(),
