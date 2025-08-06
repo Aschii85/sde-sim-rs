@@ -30,3 +30,8 @@ include = [
     "python/sde_simulators/sde_simulators.pyi", 
     "python/sde_simulators/py.typed",
 ]
+
+[dependency-groups]
+dev = [
+    "snakeviz>=2.2.1",
+]
