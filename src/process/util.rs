@@ -47,7 +47,7 @@ fn parse_equation(equation: &str) -> Result<LevyProcess, String> {
             context
                 .set_value(
                     process_name.clone(),
-                    Value::from_float(f.value(t, s, process_name.clone())),
+                    Value::from_float(f.value(t, s, process_name.clone()).unwrap()),
                 )
                 .ok();
             context

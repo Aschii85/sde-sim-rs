@@ -43,13 +43,16 @@ impl Incrementor for WienerIncrementor {
             let increment = (t_end - t_start).sqrt() * NORMAL_STD.sample(rng);
             self.cache.put(key, increment);
         }
-        *self.cache.get(&key).unwrap()
+        match self.cache.get(&key) {
+            Some(val) => *val,
+            None => 0.0,
+        }
     }
 }
 
 impl WienerIncrementor {
     pub fn new() -> Self {
-        let capacity = NonZeroUsize::new(10).unwrap();
+        let capacity = NonZeroUsize::new(1).unwrap();
         Self {
             cache: LruCache::new(capacity),
         }
@@ -59,7 +62,10 @@ impl WienerIncrementor {
 // Allow shared ownership of WienerIncrementor via Arc<Mutex<WienerIncrementor>>
 impl Incrementor for Arc<Mutex<WienerIncrementor>> {
     fn sample(&mut self, scenario: i32, t_start: f64, t_end: f64, rng: &mut dyn RngCore) -> f64 {
-        let mut guard = self.lock().unwrap();
+        let mut guard = match self.lock() {
+            Ok(g) => g,
+            Err(_) => return 0.0,
+        };
         guard.sample(scenario, t_start, t_end, rng)
     }
 }

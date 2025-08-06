@@ -48,16 +48,3 @@ impl ItoProcess {
         &self.coefficients[1]
     }
 }
-
-/// Factory Functions for Specific Ito Processes
-// These functions create specific instances of ItoProcess with predefined drift and diffusion coefficients.
-// They are prefered  over using `from_string` for common processes, as they are more efficient
-// computationally (around 2/4-times faster for meval/luajit).
-pub fn geometric_brownian_motion(name: String, mu: f64, sigma: f64) -> ItoProcess {
-    let _name = name.clone();
-    let drift = Box::new(move |f: &Filtration, t: f64, s: i32| mu * f.value(t, s, _name.clone()));
-    let _name = name.clone();
-    let diffusion =
-        Box::new(move |f: &Filtration, t: f64, s: i32| sigma * f.value(t, s, _name.clone()));
-    ItoProcess::new(name.clone(), drift, diffusion).unwrap()
-}

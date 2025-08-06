@@ -46,14 +46,20 @@ impl Filtration {
         Some((time_idx, scenario_idx, process_idx))
     }
 
-    pub fn value(&self, time: f64, scenario: i32, process_name: String) -> f64 {
-        let idx = self.indices(time, scenario, &process_name).unwrap();
-        self.raw_values[idx]
+    pub fn value(&self, time: f64, scenario: i32, process_name: String) -> Result<f64, String> {
+        match self.indices(time, scenario, &process_name) {
+            Some(idx) => Ok(self.raw_values[idx]),
+            None => Err(format!(
+                "No value found for time: {}, scenario: {}, process_name: {}",
+                time, scenario, process_name
+            )),
+        }
     }
     /// Sets the value at the given (time, scenario, process_name) to new_value
     pub fn set_value(&mut self, time: f64, scenario: i32, process_name: String, new_value: f64) {
-        let idx = self.indices(time, scenario, &process_name).unwrap();
-        self.raw_values[idx] = new_value;
+        if let Some(idx) = self.indices(time, scenario, &process_name) {
+            self.raw_values[idx] = new_value;
+        }
     }
 
     pub fn set_initial_values(&mut self, values: HashMap<String, f64>) {

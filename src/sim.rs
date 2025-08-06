@@ -11,7 +11,9 @@ pub fn euler_scheme_iteration(
     rngs: &mut Vec<impl Rng>,
 ) {
     for (process, rng) in processes.iter_mut().zip(rngs.iter_mut()) {
-        let mut result = filtration.value(t_start, scenario, process.name().clone());
+        let mut result = filtration
+            .value(t_start, scenario, process.name().clone())
+            .unwrap();
         for idx in 0..process.coefficients().len() {
             let c = process.coefficients()[idx](&filtration, t_start, scenario);
             let x = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);

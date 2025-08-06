@@ -88,7 +88,7 @@ fn main() {
     let scenarios: i32 = 1000;
     let equations = [
         "dX1 = (0.005 * X1) * dt + (0.02 * X1) * dW1".to_string(),
-        "dX2 = (0.005 * X2) * dt + (0.02 * X2) * dW1".to_string(),
+        "dX2 = (0.005 * X2) * dt + (0.02 * X1) * dW1 + (0.01 * X2) * dW2".to_string(),
     ];
     let levy_processes = parse_equations(&equations).expect("Failed to parse equations");
     // Convert Vec<LevyProcess> to Vec<Box<dyn Process>>
