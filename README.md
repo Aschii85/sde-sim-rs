@@ -39,7 +39,7 @@ uv run python/sde_simulators/example.py
 You can take latest release from crates.io, or if you want to use the latest features / performance improvements point to the main branch of this repo.
 
 ```
-polars = { git = "https://github.com/Aschii85/sde-sim-rs", rev = "<optional git tag>" }
+sde-sim-rs = { git = "https://github.com/Aschii85/sde-sim-rs", rev = "<optional git tag>" }
 ```
 
 ## Contributing
