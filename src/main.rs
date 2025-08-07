@@ -23,11 +23,7 @@ fn main() {
         "dX1 = (0.005 * X1) * dt + (0.02 * X1) * dW1".to_string(),
         "dX2 = (0.005 * X2) * dt + (0.02 * X1) * dW1 + (0.01 * X2) * dW2".to_string(),
     ];
-    let levy_processes = parse_equations(&equations).expect("Failed to parse equations");
-    let mut processes: Vec<Box<dyn Process>> = levy_processes
-        .into_iter()
-        .map(|p| Box::new(p) as Box<dyn Process>)
-        .collect();
+    let mut processes = parse_equations(&equations).expect("Failed to parse equations");
     let time_steps: Vec<OrderedFloat<f64>> = (0..)
         .map(|i| OrderedFloat(t_start + i as f64 * dt))
         .take_while(|t| t.0 <= t_end)

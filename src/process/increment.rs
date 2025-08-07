@@ -6,13 +6,16 @@ use statrs::distribution::Normal;
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
-// Use a standard normal distribution for Wiener process sampling
+// TODO: Add other increments such as jumps
+
+// Use a single standard normal distribution for Wiener process sampling
 static NORMAL_STD: Lazy<Normal> = Lazy::new(|| Normal::standard());
 
 pub trait Incrementor {
     fn sample(&mut self, scenario: i32, t_start: f64, t_end: f64, rng: &mut dyn RngCore) -> f64;
 }
 
+#[derive(Clone)]
 pub struct TimeIncrementor {}
 
 impl Incrementor for TimeIncrementor {

@@ -1,7 +1,7 @@
 use crate::filtration::Filtration;
-use ordered_float::OrderedFloat;
 use crate::process::Process;
 use crate::process::increment::Incrementor;
+use ordered_float::OrderedFloat;
 
 pub struct LevyProcess {
     name: String,

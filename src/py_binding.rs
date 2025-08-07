@@ -5,7 +5,6 @@ use pyo3_polars::PyDataFrame;
 use std::collections::HashMap;
 
 use crate::filtration::Filtration;
-use crate::process::Process;
 use crate::sim::simulate;
 
 #[pyfunction]
@@ -17,17 +16,13 @@ pub fn simulate_py(
     initial_values: HashMap<String, f64>,
 ) -> PyResult<PyDataFrame> {
     // Use parse_equations from levy.rs
-    let levy_processes =
+    let mut processes =
         crate::process::util::parse_equations(&processes_equations).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                 "Failed to parse process equations: {}",
                 e
             ))
         })?;
-    let mut processes: Vec<Box<dyn Process>> = levy_processes
-        .into_iter()
-        .map(|p| Box::new(p) as Box<dyn Process>)
-        .collect();
     let time_steps_ordered: Vec<OrderedFloat<f64>> =
         time_steps.iter().copied().map(OrderedFloat).collect();
     let mut filtration = Filtration::new(

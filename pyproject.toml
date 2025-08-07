@@ -33,5 +33,6 @@ include = [
 
 [dependency-groups]
 dev = [
+    "ruff>=0.12.7",
     "snakeviz>=2.2.1",
 ]

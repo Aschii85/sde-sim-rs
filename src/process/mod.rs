@@ -4,8 +4,8 @@ pub mod levy;
 pub mod util;
 
 use crate::filtration::Filtration;
-use ordered_float::OrderedFloat;
 use crate::process::increment::Incrementor;
+use ordered_float::OrderedFloat;
 
 pub trait Process {
     fn name(&self) -> &String;
