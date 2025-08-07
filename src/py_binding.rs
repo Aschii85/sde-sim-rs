@@ -5,6 +5,7 @@ use pyo3_polars::PyDataFrame;
 use std::collections::HashMap;
 
 use crate::filtration::Filtration;
+use crate::rng::{PseudoRng, Rng, SobolRng};
 use crate::sim::simulate;
 
 #[pyfunction]
@@ -14,8 +15,9 @@ pub fn simulate_py(
     time_steps: Vec<f64>,
     scenarios: i32,
     initial_values: HashMap<String, f64>,
+    rng_method: String,
+    scheme: String,
 ) -> PyResult<PyDataFrame> {
-    // Use parse_equations from levy.rs
     let mut processes =
         crate::process::util::parse_equations(&processes_equations).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
@@ -36,18 +38,28 @@ pub fn simulate_py(
         )),
         Some(initial_values),
     );
-
-    // Create a Vec of ThreadRngs, each owned and mutable
-    let mut rngs: Vec<rand::rngs::ThreadRng> = (0..processes.len())
-        .map(|_| rand::rngs::ThreadRng::default())
-        .collect();
-
+    let mut rng: Box<dyn Rng> = if rng_method == "sobol" {
+        Box::new(SobolRng::new(
+            processes
+                .iter_mut()
+                .flat_map(|p| p.incrementors().iter_mut().map(|i| i.name().clone()))
+                .collect::<Vec<String>>(),
+        ))
+    } else {
+        Box::new(PseudoRng::new(
+            processes
+                .iter_mut()
+                .flat_map(|p| p.incrementors().iter_mut().map(|i| i.name().clone()))
+                .collect::<Vec<String>>(),
+        ))
+    };
     simulate(
         &mut filtration,
         &mut processes,
         &time_steps_ordered,
         &scenarios,
-        &mut rngs,
+        &mut *rng,
+        &scheme,
     );
     let df: DataFrame = filtration.to_dataframe();
     Ok(PyDataFrame(df))

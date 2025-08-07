@@ -32,7 +32,7 @@ impl LevyProcess {
         if coefficients.len() != incrementors.len() {
             return Err("coefficients and incrementors must have the same length".to_string());
         }
-        Ok(LevyProcess {
+        Ok(Self {
             name,
             coefficients,
             incrementors,

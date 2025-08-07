@@ -1,10 +1,8 @@
-use lru::LruCache;
+use crate::rng::Rng;
+use lru;
 use once_cell::sync::Lazy;
-use rand::RngCore;
-use rand::distributions::Distribution;
-use statrs::distribution::Normal;
-use std::num::NonZeroUsize;
-use std::sync::{Arc, Mutex};
+use ordered_float::OrderedFloat;
+use statrs::distribution::{ContinuousCDF, Normal};
 
 // TODO: Add other increments such as jumps
 
@@ -12,38 +10,46 @@ use std::sync::{Arc, Mutex};
 static NORMAL_STD: Lazy<Normal> = Lazy::new(|| Normal::standard());
 
 pub trait Incrementor {
-    fn sample(&mut self, scenario: i32, t_start: f64, t_end: f64, rng: &mut dyn RngCore) -> f64;
+    fn new(name: String) -> Self
+    where
+        Self: Sized;
+    fn sample(
+        &mut self,
+        scenario: i32,
+        t_start: OrderedFloat<f64>,
+        t_end: OrderedFloat<f64>,
+        rng: &mut dyn Rng,
+    ) -> f64;
+    fn name(&self) -> &String;
 }
 
 #[derive(Clone)]
-pub struct TimeIncrementor {}
+pub struct TimeIncrementor {
+    cache: lru::LruCache<(i32, OrderedFloat<f64>, OrderedFloat<f64>), f64>,
+    name: String,
+}
 
 impl Incrementor for TimeIncrementor {
-    fn sample(&mut self, _scenario: i32, t_start: f64, t_end: f64, _rng: &mut dyn RngCore) -> f64 {
-        t_end - t_start
+    fn new(name: String) -> Self
+    where
+        Self: Sized,
+    {
+        let capacity = std::num::NonZeroUsize::new(1).unwrap();
+        Self {
+            cache: lru::LruCache::new(capacity),
+            name,
+        }
     }
-}
-
-impl TimeIncrementor {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[derive(Clone)]
-pub struct WienerIncrementor {
-    cache: LruCache<(i32, i64, i64), f64>,
-}
-
-impl Incrementor for WienerIncrementor {
-    fn sample(&mut self, scenario: i32, t_start: f64, t_end: f64, rng: &mut dyn RngCore) -> f64 {
-        // Convert time to integer milliseconds for caching
-        let t_start_ms = (t_start * 1000.0) as i64;
-        let t_end_ms = (t_end * 1000.0) as i64;
-        let key = (scenario, t_start_ms, t_end_ms);
-
+    fn sample(
+        &mut self,
+        scenario: i32,
+        t_start: OrderedFloat<f64>,
+        t_end: OrderedFloat<f64>,
+        _rng: &mut dyn Rng,
+    ) -> f64 {
+        let key = (scenario, t_start, t_end);
         if !self.cache.contains(&key) {
-            let increment = (t_end - t_start).sqrt() * NORMAL_STD.sample(rng);
+            let increment = (t_end - t_start).into_inner();
             self.cache.put(key, increment);
         }
         match self.cache.get(&key) {
@@ -51,24 +57,48 @@ impl Incrementor for WienerIncrementor {
             None => 0.0,
         }
     }
-}
-
-impl WienerIncrementor {
-    pub fn new() -> Self {
-        let capacity = NonZeroUsize::new(1).unwrap();
-        Self {
-            cache: LruCache::new(capacity),
-        }
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
-// Allow shared ownership of WienerIncrementor via Arc<Mutex<WienerIncrementor>>
-impl Incrementor for Arc<Mutex<WienerIncrementor>> {
-    fn sample(&mut self, scenario: i32, t_start: f64, t_end: f64, rng: &mut dyn RngCore) -> f64 {
-        let mut guard = match self.lock() {
-            Ok(g) => g,
-            Err(_) => return 0.0,
-        };
-        guard.sample(scenario, t_start, t_end, rng)
+#[derive(Clone)]
+pub struct WienerIncrementor {
+    cache: lru::LruCache<(i32, OrderedFloat<f64>, OrderedFloat<f64>), f64>,
+    name: String,
+}
+
+impl Incrementor for WienerIncrementor {
+    fn new(name: String) -> Self
+    where
+        Self: Sized,
+    {
+        let capacity = std::num::NonZeroUsize::new(1).unwrap();
+        Self {
+            cache: lru::LruCache::new(capacity),
+            name,
+        }
+    }
+    fn sample(
+        &mut self,
+        scenario: i32,
+        t_start: OrderedFloat<f64>,
+        t_end: OrderedFloat<f64>,
+        rng: &mut dyn Rng,
+    ) -> f64 {
+        // Convert time to integer milliseconds for caching
+        let key = (scenario, t_start, t_end);
+        if !self.cache.contains(&key) {
+            let q = rng.sample(scenario, t_start, t_end, &self.name);
+            let increment = (t_end - t_start).sqrt() * NORMAL_STD.inverse_cdf(q);
+            self.cache.put(key, increment);
+        }
+        match self.cache.get(&key) {
+            Some(val) => *val,
+            None => 0.0,
+        }
+    }
+    fn name(&self) -> &String {
+        &self.name
     }
 }

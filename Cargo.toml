@@ -6,7 +6,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "sde_sim_rs"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 evalexpr = "12.0.2"
@@ -15,9 +15,11 @@ lru = "0.16.0"
 ndarray = "0.16.1"
 once_cell = "1.21.3"
 ordered-float = "4.2"
+plotters = "0.3.7"
 polars = "0.49.1"
 pyo3 = { version = "0.25.0", features = ["extension-module"] }
 pyo3-polars = "0.22.0"
 rand = { version = "0.8.5", features = ["std"] } # this version required for compatibility with statrs
 regex = "1.11.1"
+sobol = "1.0.2"
 statrs = "0.18.0"

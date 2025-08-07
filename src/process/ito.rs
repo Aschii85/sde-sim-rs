@@ -1,14 +1,12 @@
 use crate::filtration::Filtration;
 use crate::process::Process;
-use crate::process::increment::{Incrementor, TimeIncrementor, WienerIncrementor};
+use crate::process::increment::Incrementor;
 use ordered_float::OrderedFloat;
-use std::sync::{Arc, Mutex};
 
 pub struct ItoProcess {
     name: String,
     coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>>,
-    incrementors: Vec<Box<dyn Incrementor>>, // All incrementors (trait objects)
-    diffusion_incrementors: Vec<Box<Arc<Mutex<WienerIncrementor>>>>, // Only diffusion incrementors (concrete)
+    incrementors: Vec<Box<dyn Incrementor>>,
 }
 
 impl Process for ItoProcess {
@@ -28,42 +26,24 @@ impl Process for ItoProcess {
 impl ItoProcess {
     pub fn new(
         name: String,
-        drift: Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>,
-        diffusion_coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>>,
-        diffusion_incrementors: Vec<Box<Arc<Mutex<WienerIncrementor>>>>,
+        coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>>,
+        incrementors: Vec<Box<dyn Incrementor>>,
     ) -> Result<Self, String> {
-        let coefficients = std::iter::once(drift)
-            .chain(diffusion_coefficients.into_iter())
-            .collect();
-
-        let incrementors: Vec<Box<dyn Incrementor>> =
-            std::iter::once(Box::new(TimeIncrementor::new()) as Box<dyn Incrementor>)
-                .chain(diffusion_incrementors.iter().map(|w| {
-                    // Clone each WienerIncrementor for trait object storage
-                    // You must implement Clone for WienerIncrementor
-                    w.clone() as Box<dyn Incrementor>
-                }))
-                .collect();
-
-        Ok(ItoProcess {
+        if coefficients.len() != incrementors.len() {
+            return Err("coefficients and incrementors must have the same length".to_string());
+        }
+        for incrementor in &incrementors {
+            if !incrementor.name().starts_with("W") && incrementor.name() != "t" {
+                return Err(format!(
+                    "All incrementors must be Wiener processes or the time increment 't', not '{}'!",
+                    incrementor.name()
+                ));
+            }
+        }
+        Ok(Self {
             name,
             coefficients,
             incrementors,
-            diffusion_incrementors,
         })
-    }
-
-    pub fn drift(&self) -> &Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64> {
-        &self.coefficients[0]
-    }
-
-    pub fn diffusion_coefficients(
-        &self,
-    ) -> &[Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>] {
-        &self.coefficients[1..]
-    }
-
-    pub fn diffusion_incrementors(&mut self) -> &mut Vec<Box<Arc<Mutex<WienerIncrementor>>>> {
-        &mut self.diffusion_incrementors
     }
 }
