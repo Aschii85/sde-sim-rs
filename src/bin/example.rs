@@ -43,6 +43,7 @@ fn main() {
                 .iter_mut()
                 .flat_map(|p| p.incrementors().iter_mut().map(|i| i.name().clone()))
                 .collect::<Vec<String>>(),
+            time_steps.clone(),
         ))
     } else {
         Box::new(PseudoRng::new(

@@ -44,6 +44,7 @@ pub fn simulate_py(
                 .iter_mut()
                 .flat_map(|p| p.incrementors().iter_mut().map(|i| i.name().clone()))
                 .collect::<Vec<String>>(),
+            time_steps_ordered.clone(),
         ))
     } else {
         Box::new(PseudoRng::new(
