@@ -6,11 +6,11 @@
 
 **High Performance**: The implementation in Rust provides bare-metal performance, which is critical for time-sensitive and computationally intensive simulations. The language's zero-cost abstractions and memory-safe concurrency models allow for the efficient handling of large datasets and provide the potential for parallelizing simulation tasks, offering a significant speed advantage over purely interpreted solutions.
 
-**Multiple Simulation Methods**: The library includes both *Monte Carlo* (MC) simulation, using pseudo-random numbers, and *Randomized Quasi-Monte Carlo* (RQMC) simulation, which uses Sobol sequences that are randomized by scrambling (random XOR) to provide an unbiased estimate with better sample coverage, methods. 
+**Flexibility**: The library's design and modular architecture allows for the creation and integration of custom SDE models to suit specialized research or application needs.
+
+**Multiple Simulation Methods**: The library includes both *Monte Carlo* (MC) simulation, using pseudo-random numbers, and *Randomized Quasi-Monte Carlo* (RQMC) simulation, using Sobol sequences randomized by scrambling (random XOR) to provide an unbiased estimate with better sample coverage. 
 
 **Multiple Integration Schemes**: The library also implements several integration schemes, including *Euler-Maruyama* and *Runge-Kutta first order*.
-
-**Flexibility**: The library's design and modular architecture allows for the creation and integration of custom SDE models to suit specialized research or application needs.
 
 **Python Integration**: A user-friendly and comprehensive Python interface via maturin allows you to utilize the Rust core without leaving your Python environment. This means data scientists and researchers can leverage the speed of a compiled language for the most demanding parts of their code, with bindings designed for seamless function calls and data exchange between the two languages.
 
