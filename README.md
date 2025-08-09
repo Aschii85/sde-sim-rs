@@ -19,14 +19,6 @@
 
 ### Python
 
-Install the latest `sde-sim-rs` version with:
-
-```
-pip install sde-sim-rs
-```
-
-Requires Python version >=3.11.
-
 To build the package locally for, you'll first need to compile the Rust package for local development. The project is set up to use `maturin` and `uv`. This command builds the Rust library and creates a Python wheel that can be used directly in your environment.
 
 ```
@@ -40,12 +32,6 @@ uv run examples/example.py
 ```
 
 ### Rust
-
-You can take latest release from crates.io, or if you want to use the latest features / performance improvements point to the main branch of this repo.
-
-```
-sde-sim-rs = { git = "https://github.com/Aschii85/sde-sim-rs", rev = "<optional git tag>" }
-```
 
 An example file for using the crate can be found in `examples/example.rs`, which can be rung using `cargo run -r --example example`.
 
