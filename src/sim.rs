@@ -3,8 +3,20 @@ use crate::process::Process;
 use crate::rng::Rng;
 use ordered_float::OrderedFloat;
 
-// TODO: Implement Runge-Kutta, Millstein, etc. iterations.
-
+/// Performs a single **Euler-Maruyama** iteration for the given processes.
+///
+/// This function advances the state of each stochastic process from `t_start` to `t_end`
+/// for a single scenario. It calculates the new value by adding the weighted increments
+/// (drift and diffusion) to the current value.
+///
+/// # Arguments
+///
+/// * `filtration` - A mutable reference to the `Filtration` storing the process values.
+/// * `processes` - A mutable vector of boxed `Process` trait objects.
+/// * `t_start` - The starting time of the iteration interval.
+/// * `t_end` - The ending time of the iteration interval.
+/// * `scenario` - The identifier for the current simulation path.
+/// * `rng` - A mutable reference to a `Rng` trait object for sampling random numbers.
 pub fn euler_iteration(
     filtration: &mut Filtration,
     processes: &mut Vec<Box<dyn Process>>,
@@ -26,7 +38,23 @@ pub fn euler_iteration(
     }
 }
 
-// First-order Runge-Kutta scheme of string order 1 iteration
+/// Performs a first-order **Runge-Kutta** scheme iteration for the given processes.
+///
+/// This function advances the state of each stochastic process from `t_start` to `t_end`
+/// for a single scenario using a Runge-Kutta method. It involves calculating two intermediate
+/// values, `k1` and `k2`, to achieve a higher order of accuracy than the Euler-Maruyama scheme.
+///
+/// **NOTE:** The current implementation assumes the time incrementor (`dt`) is the first
+/// coefficient in the process definition. This is a known limitation.
+///
+/// # Arguments
+///
+/// * `filtration` - A mutable reference to the `Filtration` storing the process values.
+/// * `processes` - A mutable vector of boxed `Process` trait objects.
+/// * `t_start` - The starting time of the iteration interval.
+/// * `t_end` - The ending time of the iteration interval.
+/// * `scenario` - The identifier for the current simulation path.
+/// * `rng` - A mutable reference to a `Rng` trait object for sampling random numbers.
 pub fn runge_kutta_iteration(
     filtration: &mut Filtration,
     processes: &mut Vec<Box<dyn Process>>,
@@ -88,6 +116,20 @@ pub fn runge_kutta_iteration(
     }
 }
 
+/// Simulates a set of stochastic processes over time and scenarios.
+///
+/// This is the main simulation function that iterates through all specified scenarios
+/// and time steps, applying the chosen numerical scheme (`euler` or `runge-kutta`)
+/// to advance the state of each process.
+///
+/// # Arguments
+///
+/// * `filtration` - A mutable reference to the `Filtration` instance to store the results.
+/// * `processes` - A mutable vector of boxed `Process` trait objects representing the SDEs.
+/// * `time_steps` - A slice of `OrderedFloat<f64>` values for the time points of the simulation.
+/// * `scenarios` - The total number of scenarios (simulation paths) to run.
+/// * `rng` - A mutable reference to a `Rng` trait object for random number generation.
+/// * `scheme` - A string slice indicating the numerical scheme to use ("euler" or "runge-kutta").
 pub fn simulate(
     filtration: &mut Filtration,
     processes: &mut Vec<Box<dyn Process>>,
