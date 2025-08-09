@@ -38,7 +38,7 @@ pub fn runge_kutta_iteration(
     let sqrt_dt = (*(t_end - t_start)).sqrt();
     let mut k1 = vec![0.0; processes.len()];
     let mut k2 = vec![0.0; processes.len()];
-    let mut filtration_plus_k1 = Filtration::new(
+    let mut filtration_plus_k1_at_t_end = Filtration::new(
         vec![t_start.clone()],
         vec![scenario.clone()],
         processes.iter().map(|p| p.name().clone()).collect(),
@@ -51,15 +51,15 @@ pub fn runge_kutta_iteration(
         for idx in 0..process.coefficients().len() {
             let c = process.coefficients()[idx](&filtration, t_start, scenario);
             let d = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
-            // TODO: This requires time incrementer is first. Do something more sophisticated...
+            // NOTE: This requires the time incrementor is first. Do something more sophisticated...
             k1[i] += if idx == 0 {
                 c * d
             } else {
                 c * (d - sk * sqrt_dt)
             };
         }
-        filtration_plus_k1.set_value(
-            t_start,
+        filtration_plus_k1_at_t_end.set_value(
+            t_end,
             scenario,
             process.name(),
             filtration.value(t_start, scenario, process.name()).unwrap() + k1[i].clone(),
@@ -68,9 +68,9 @@ pub fn runge_kutta_iteration(
     // Calculate k2
     for (i, process) in processes.iter_mut().enumerate() {
         for idx in 0..process.coefficients().len() {
-            let c = process.coefficients()[idx](&filtration_plus_k1, t_start, scenario);
+            let c = process.coefficients()[idx](&filtration_plus_k1_at_t_end, t_end, scenario);
             let d = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
-            // TODO: This requires time incrementer is first. Do something more sophisticated...
+            // NOTE: This requires the time incrementor is first. Do something more sophisticated...
             k2[i] += if idx == 0 {
                 c * d
             } else {
