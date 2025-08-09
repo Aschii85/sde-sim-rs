@@ -39,7 +39,7 @@ pub fn runge_kutta_iteration(
     let mut k1 = vec![0.0; processes.len()];
     let mut k2 = vec![0.0; processes.len()];
     let mut filtration_plus_k1_at_t_end = Filtration::new(
-        vec![t_start.clone()],
+        vec![t_end.clone()],
         vec![scenario.clone()],
         processes.iter().map(|p| p.name().clone()).collect(),
         ndarray::Array3::<f64>::zeros((1, 1, processes.len())),

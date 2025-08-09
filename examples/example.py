@@ -13,9 +13,9 @@ def main():
             "dX2 = ( 0.01 * X2 ) * dt + ( 0.01 * X2 ) * dW1 + ( 0.02 * X2 ) * dW1",
         ],
         time_steps=list(np.arange(0.0, 100.0, 0.1)),
-        scenarios=10000,
+        scenarios=1000,
         initial_values={"X1": 1.0, "X2": 0.5},
-        rng_method="pseudo",
+        rng_method="sobol",
         scheme="euler",
     )
     print(df)
