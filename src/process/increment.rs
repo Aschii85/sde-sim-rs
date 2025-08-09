@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use ordered_float::OrderedFloat;
 use statrs::distribution::{ContinuousCDF, Normal};
 
-// TODO: Add other increments such as jumps
+// TODO: Add other increments such as jumps/Poisson or any other stochastic processes
 
 // Use a single standard normal distribution for Wiener process sampling
 static NORMAL_STD: Lazy<Normal> = Lazy::new(|| Normal::standard());

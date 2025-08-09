@@ -56,7 +56,7 @@ fn parse_equation(equation: &str) -> Result<Box<dyn Process>, String> {
         let term_name = caps.get(2).map_or("", |m| m.as_str()).to_string();
         match term_name.as_ref() {
             "dt" => {
-                incrementors.push(Box::new(TimeIncrementor::new("t".to_string())));
+                incrementors.insert(0, Box::new(TimeIncrementor::new("t".to_string())));
             }
             _ if term_name.starts_with("dW") => {
                 incrementors.push(Box::new(WienerIncrementor::new(

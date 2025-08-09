@@ -51,7 +51,7 @@ pub fn runge_kutta_iteration(
         for idx in 0..process.coefficients().len() {
             let c = process.coefficients()[idx](&filtration, t_start, scenario);
             let d = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
-            // TODO: This requires time incrementer is first, do something else...
+            // TODO: This requires time incrementer is first. Do something more sophisticated...
             k1[i] += if idx == 0 {
                 c * d
             } else {
@@ -70,6 +70,7 @@ pub fn runge_kutta_iteration(
         for idx in 0..process.coefficients().len() {
             let c = process.coefficients()[idx](&filtration_plus_k1, t_start, scenario);
             let d = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
+            // TODO: This requires time incrementer is first. Do something more sophisticated...
             k2[i] += if idx == 0 {
                 c * d
             } else {
