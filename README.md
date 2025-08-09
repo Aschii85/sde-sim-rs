@@ -1,5 +1,7 @@
 # sde-sim-rs: Flexible stochastic differential equation simulation library written in Rust
 
+[![Release PyPi](https://github.com/Aschii85/sde-sim-rs/actions/workflows/Release%20PyPi.yml/badge.svg)](https://github.com/Aschii85/sde-sim-rs/actions/workflows/Release%20PyPi.yml) [![Release Crate](https://github.com/Aschii85/sde-sim-rs/actions/workflows/Release%20Crates.yml/badge.svg)](https://github.com/Aschii85/sde-sim-rs/actions/workflows/Release%20Crates.yml)
+
 `sde-sim-rs` is a high-performance library for simulating stochastic differential equations (SDEs), which are foundational in fields like quantitative finance, physics, and biology. By leveraging the speed and memory safety of Rust, the project provides a fast and flexible core while offering seamless bindings for use in Python and Rust. This project is ideal for researchers, data scientists, and developers who need to run complex SDE using Monte-Carlo and quasi Monte-Carlo simulations with remarkable efficiency and reliability, while bridge the gap between high-performance compiled languages and the scientific computing ecosystem of Python.
 
 ## Features
