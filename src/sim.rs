@@ -35,32 +35,56 @@ pub fn runge_kutta_iteration(
     scenario: i32,
     rng: &mut dyn Rng,
 ) {
-    // let h = t_end - t_start;
-    // let mut k1 = vec![0.0; processes.len()];
-    // let mut k2 = vec![0.0; processes.len()];
-    // // Calculate k1
-    // for i in 0..processes.len() {
-    //     let process = &processes[i];
-    //     let mut result = filtration
-    //         .value(t_start, scenario, &process.name())
-    //         .unwrap_or(0.0);
-    //     for idx in 0..process.coefficients().len() {
-    //         let c = process.coefficients()[idx](&filtration, t_start, scenario);
-    //         let x = process.incrementors()[idx].sample(scenario, t_start.0, t_end.0, rng);
-    //         result += c * x;
-    //     }
-    //     k1[i] = result;
-    // }
-    // for (process, rng) in processes.iter_mut().zip(rngs.iter_mut()) {
-    //     let mut result = filtration
-    //         .value(t_start, scenario, &process.name())
-    //         .unwrap_or(0.0);
-    //     for idx in 0..process.coefficients().len() {
-    //         let c = process.coefficients()[idx](&filtration, t_start, scenario);
-    //         let x = process.incrementors()[idx].sample(scenario, t_start.0, t_end.0, rng);
-    //         result += c * x;
-    //     }
-    // }
+    let sqrt_dt = (*(t_end - t_start)).sqrt();
+    let mut k1 = vec![0.0; processes.len()];
+    let mut k2 = vec![0.0; processes.len()];
+    let mut filtration_plus_k1 = Filtration::new(
+        vec![t_start.clone()],
+        vec![scenario.clone()],
+        processes.iter().map(|p| p.name().clone()).collect(),
+        ndarray::Array3::<f64>::zeros((1, 1, processes.len())),
+        None,
+    );
+    let sk = if rand::random_bool(0.5) { 1.0 } else { -1.0 };
+    // Calculate k1
+    for (i, process) in processes.iter_mut().enumerate() {
+        for idx in 0..process.coefficients().len() {
+            let c = process.coefficients()[idx](&filtration, t_start, scenario);
+            let d = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
+            // TODO: This requires time incrementer is first, do something else...
+            k1[i] += if idx == 0 {
+                c * d
+            } else {
+                c * (d - sk * sqrt_dt)
+            };
+        }
+        filtration_plus_k1.set_value(
+            t_start,
+            scenario,
+            process.name(),
+            filtration.value(t_start, scenario, process.name()).unwrap() + k1[i].clone(),
+        );
+    }
+    // Calculate k2
+    for (i, process) in processes.iter_mut().enumerate() {
+        for idx in 0..process.coefficients().len() {
+            let c = process.coefficients()[idx](&filtration_plus_k1, t_start, scenario);
+            let d = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
+            k2[i] += if idx == 0 {
+                c * d
+            } else {
+                c * (d + sk * sqrt_dt)
+            };
+        }
+    }
+    for (i, process) in processes.iter().enumerate() {
+        filtration.set_value(
+            t_end,
+            scenario,
+            process.name(),
+            filtration.value(t_start, scenario, process.name()).unwrap() + 0.5 * (k1[i] + k2[i]),
+        );
+    }
 }
 
 pub fn simulate(
@@ -77,7 +101,7 @@ pub fn simulate(
                 "euler" => {
                     euler_iteration(filtration, processes, ts[0], ts[1], scenario, rng);
                 }
-                "runge_kutta" => {
+                "runge-kutta" => {
                     runge_kutta_iteration(filtration, processes, ts[0], ts[1], scenario, rng);
                 }
                 _ => panic!("Unknown scheme: {}", scheme),

@@ -10,5 +10,9 @@ def simulate(
     scenarios: int,
     initial_values: Mapping[str, float],
     rng_method: Literal["pseudo", "sobol"] = "pseudo",
-    scheme: Literal["euler", "runge_kutta"] = "euler",
-) -> pl.DataFrame: ...
+    scheme: Literal["euler", "runge-kutta"] = "euler",
+) -> pl.DataFrame: 
+    """
+    Simulate stochastic differential equations (SDEs) using the specified methods.
+    """
+    ...

@@ -22,7 +22,7 @@ fn main() {
         "dX2 = (0.005 * X2) * dt + (0.02 * X1) * dW1 + (0.01 * X2) * dW2".to_string(),
     ];
     let mut processes = parse_equations(&equations).expect("Failed to parse equations");
-    let scheme = "euler"; // "euler" or "runge_kutta"
+    let scheme = "runge-kutta"; // "euler" or "runge-kutta"
     let rng_scheme = "sobol"; // "pseudo" or "sobol"
 
     // Start Setup

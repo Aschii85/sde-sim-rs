@@ -14,10 +14,10 @@ def main():
         processes_equations=[
             f"dX1 = ( {mu} * X1 ) * dt + ( {sigma} * X1) * dW1",
         ],
-        time_steps=list(np.arange(0.0, 10.0, 0.01)),
+        time_steps=list(np.arange(0.0, 10.0, 0.1)),
         scenarios=1000,
         initial_values={"X1": start_value},
-        rng_method="pseudo",
+        rng_method="sobol",
         scheme="euler",
     )
     print(df)
