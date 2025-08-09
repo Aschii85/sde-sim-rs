@@ -1,0 +1,48 @@
+name: Release Crate
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on tags starting with "v"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+      - name: Install dependencies
+        run: |
+          cargo install cargo-release
+          cargo install cargo-semver-checks
+          cargo install --locked --all-features --target x86_64-unknown-linux-gnu --bin <your_binary_name>
+      - name: Run tests
+        run: cargo test
+      - name: Check for security vulnerabilities
+        run: |
+          cargo install --locked --all-features --target x86_64-unknown-linux-gnu cargo-audit
+          cargo audit
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run rustfmt
+        run: cargo fmt -- --check
+      - name: Run semver checks
+        run: |
+          cargo semver-checks check-release --baseline tag
+      - name: Bump version and tag
+        run: |
+          cargo release -y minor --execute
+          git push --follow-tags origin main
+      - name: Publish to crates.io
+        run: |
+          cargo publish --token ${{ env.CRATES_IO_TOKEN }}
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
