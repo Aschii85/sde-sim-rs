@@ -47,7 +47,7 @@ You can take latest release from crates.io, or if you want to use the latest fea
 sde-sim-rs = { git = "https://github.com/Aschii85/sde-sim-rs", rev = "<optional git tag>" }
 ```
 
-An example file for using the crate can be found in `examples/example.rs`, which can be rung using `cargo run -r --example example`.
+An example file for using the crate can be found in `examples/example.rs`, which can be run using `cargo run -r --example example`.
 
 ## Contributing
 

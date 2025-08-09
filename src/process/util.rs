@@ -7,7 +7,36 @@ use evalexpr;
 use ordered_float::OrderedFloat;
 use regex;
 
-/// Parses a single SDE string into a LevyProcess.
+/// Parses a single Stochastic Differential Equation (SDE) string into a `Box<dyn Process>`.
+///
+/// This function takes a string representation of an SDE, extracts the process name,
+/// parses its drift and diffusion coefficients, and identifies the corresponding
+/// incrementors (e.g., `dt`, `dW`). It determines if the process is an Ito process
+/// (only `dt` and `dW` terms) or a more general Levy process.
+///
+/// # Arguments
+///
+/// * `equation` - A string slice representing a single SDE. The expected format is
+///   `"dX = (drift_expression)*dt + (diffusion_expression)*dW"`, where `dX` is the
+///   differential of the process, `drift_expression` and `diffusion_expression` are
+///   mathematical expressions that can include `t` (time) and other process names (e.g., `X1`).
+///
+/// # Returns
+///
+/// A `Result` which is:
+/// * `Ok(Box<dyn Process>)` - A boxed trait object representing either an `ItoProcess`
+///   or a `LevyProcess`, depending on the parsed terms.
+/// * `Err(String)` - An error message if parsing fails (e.g., malformed equation,
+///   unparsable expressions, unknown terms).
+///
+/// # Examples
+///
+/// ```
+/// // Example of how this might be used (assuming `sde_sim_rs` is in scope)
+/// // let eq = "dX = (0.5*X)*dt + (0.2*X)*dW1".to_string();
+/// // let process = parse_equation(&eq).unwrap();
+/// // println!("Parsed process name: {}", process.name());
+/// ```
 fn parse_equation(equation: &str) -> Result<Box<dyn Process>, String> {
     use evalexpr::ContextWithMutableVariables;
     // 1. Get the process name (e.g., "X1" from "dX1 = ...")
@@ -83,8 +112,39 @@ fn parse_equation(equation: &str) -> Result<Box<dyn Process>, String> {
     }
 }
 
-/// Parses a slice of equation strings, discovers all Wiener processes,
-/// and returns a vector of the resulting LevyProcesses.
+/// Parses a single Stochastic Differential Equation (SDE) string into a `Box<dyn Process>`.
+///
+/// This function takes a string representation of an SDE, extracts the process name,
+/// parses its drift and diffusion coefficients, and identifies the corresponding
+/// incrementors (e.g., `dt`, `dW`). It determines if the process is an Ito process
+/// (only `dt` and `dW` terms) or a more general Levy process.
+///
+/// # Equation Format
+///
+/// The equation must be in the form: `d{ProcessName} = ({expression})*d{Incrementor} + ...`.
+///
+/// * **`{ProcessName}`**: The name of the process (e.g., `X1`, `X_t`).
+/// * **`{expression}`**: A mathematical expression for the coefficient. This expression
+///     can use the current time (`t`) and the values of other processes (e.g., `X1`).
+/// * **`{Incrementor}`**: The differential term. Currently, only `dt` (for the drift term)
+///     and `dW` (for Wiener processes, e.g., `dW1`, `dW2`) are supported.
+///
+/// # Examples
+///
+/// * **Geometric Brownian Motion:** `dX = (0.5 * X) * dt + (0.2 * X) * dW1`
+/// * **Ornstein-Uhlenbeck Process:** `dX = (theta * (mu - X)) * dt + (sigma) * dW1`
+/// * **Two-Factor Model:** `dX1 = (alpha) * dt + (beta * X2) * dW1`
+///
+/// # Arguments
+///
+/// * `equation` - A string slice representing a single SDE.
+///
+/// # Returns
+///
+/// A `Result` which is:
+/// * `Ok(Box<dyn Process>)` - A boxed trait object representing an `ItoProcess`
+///   or a `LevyProcess`.
+/// * `Err(String)` - An error message if parsing fails.
 pub fn parse_equations(equations: &[String]) -> Result<Vec<Box<dyn Process>>, String> {
     if equations.is_empty() {
         return Err("No equations provided to parse.".to_string());
