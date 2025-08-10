@@ -1,12 +1,11 @@
-name: Release Crate
+name: Run tests
 
 on:
-  push:
-    tags:
-      - 'v*' # Trigger on tags starting with "v"
+  pull_request:
+    types: [edited]
 
 jobs:
-  release:
+  run-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -21,7 +20,6 @@ jobs:
           components: clippy, rustfmt
       - name: Install dependencies
         run: |
-          cargo install cargo-release
           cargo install cargo-semver-checks@0.41.0
       - name: Run tests
         run: cargo test
@@ -33,11 +31,3 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run rustfmt
         run: cargo fmt -- --check
-      - name: Run semver checks
-        run: |
-          cargo semver-checks check-release --baseline tag
-      - name: Publish to crates.io
-        run: |
-          cargo publish --token ${{ env.CRATES_IO_TOKEN }}
-        env:
-          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
