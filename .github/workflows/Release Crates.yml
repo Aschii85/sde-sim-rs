@@ -22,8 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           cargo install cargo-release
-          cargo install cargo-semver-checks
-          cargo install --locked --all-features --target x86_64-unknown-linux-gnu --bin <your_binary_name>
+          cargo install cargo-semver-checks@0.41.0
       - name: Run tests
         run: cargo test
       - name: Check for security vulnerabilities
@@ -37,10 +36,6 @@ jobs:
       - name: Run semver checks
         run: |
           cargo semver-checks check-release --baseline tag
-      - name: Bump version and tag
-        run: |
-          cargo release -y minor --execute
-          git push --follow-tags origin main
       - name: Publish to crates.io
         run: |
           cargo publish --token ${{ env.CRATES_IO_TOKEN }}
