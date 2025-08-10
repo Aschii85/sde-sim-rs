@@ -20,7 +20,7 @@ jobs:
           components: clippy, rustfmt
       - name: Install dependencies
         run: |
-          cargo install cargo-semver-checks@0.41.0
+          cargo install cargo-semver-checks
       - name: Run tests
         run: cargo test
       - name: Check for security vulnerabilities
