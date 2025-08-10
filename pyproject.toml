@@ -5,15 +5,33 @@ build-backend = "maturin"
 [project]
 name = "sde-sim-rs"
 requires-python = ">=3.11,<3.14"
+authors = [
+  {name = "Alexander Schierbeck-Hansen", email = "sch13r@gmail.com"},
+]
+description = "Lovely Spam! Wonderful Spam!"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICEN[CS]E.*"]
 classifiers = [
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Science/Research',
+    'Intended Audience :: Developers',
+    'Intended Audience :: Financial and Insurance Industry',
+    'License :: OSI Approved :: MIT License',
+    'Programming Language :: Rust',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
+    'Programming Language :: Python :: 3 :: Only',
+    'Programming Language :: Python :: Implementation :: CPython',
+    'Topic :: Software Development',
+    'Topic :: Scientific/Engineering',
+    'Typing :: Typed',
+    'Operating System :: Microsoft :: Windows',
+    'Operating System :: Unix',
+    'Operating System :: MacOS',
 ]
 dynamic = ["version"]
 dependencies = [
@@ -36,3 +54,6 @@ dev = [
     "ruff>=0.12.7",
     "snakeviz>=2.2.1",
 ]
+
+[project.urls]
+Repository = "https://github.com/Aschii85/sde-sim-rs"
