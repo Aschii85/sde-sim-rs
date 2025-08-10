@@ -1,11 +1,10 @@
-use crate::filtration::Filtration;
+use crate::process::CoefficientFn;
 use crate::process::Process;
 use crate::process::increment::Incrementor;
-use ordered_float::OrderedFloat;
 
 pub struct ItoProcess {
     name: String,
-    coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>>,
+    coefficients: Vec<Box<CoefficientFn>>,
     incrementors: Vec<Box<dyn Incrementor>>,
 }
 
@@ -14,7 +13,7 @@ impl Process for ItoProcess {
         &self.name
     }
 
-    fn coefficients(&self) -> &Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>> {
+    fn coefficients(&self) -> &Vec<Box<CoefficientFn>> {
         &self.coefficients
     }
 
@@ -26,7 +25,7 @@ impl Process for ItoProcess {
 impl ItoProcess {
     pub fn new(
         name: String,
-        coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>>,
+        coefficients: Vec<Box<CoefficientFn>>,
         incrementors: Vec<Box<dyn Incrementor>>,
     ) -> Result<Self, String> {
         if coefficients.len() != incrementors.len() {

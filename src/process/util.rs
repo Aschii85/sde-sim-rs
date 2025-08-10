@@ -1,4 +1,5 @@
 use crate::filtration::Filtration;
+use crate::process::CoefficientFn;
 use crate::process::Process;
 use crate::process::increment::{Incrementor, TimeIncrementor, WienerIncrementor};
 use crate::process::ito::ItoProcess;
@@ -49,13 +50,13 @@ fn parse_equation(equation: &str) -> Result<Box<dyn Process>, String> {
     // 2. Regex to capture coefficient expressions and their corresponding differentials (e.g., "dt", "dW1").
     let term_re =
         regex::Regex::new(r"\(((?:[^()]+|\((?R)\))*)\)\s*\*\s*(d[tWa-zA-Z0-9_]+)").unwrap();
-    let mut coefficients: Vec<Box<dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64>> = Vec::new();
+    let process_names_re = regex::Regex::new(r"X\w*").unwrap();
+    let mut coefficients: Vec<Box<CoefficientFn>> = Vec::new();
     let mut incrementors: Vec<Box<dyn Incrementor>> = Vec::new();
     let mut is_ito_process: bool = true;
     for caps in term_re.captures_iter(equation) {
         let expression_str = caps.get(1).map_or("", |m| m.as_str()).to_string();
-        let all_process_names: Vec<String> = regex::Regex::new(r"X\w*")
-            .unwrap()
+        let all_process_names: Vec<String> = process_names_re
             .find_iter(&expression_str)
             .map(|m| m.as_str().to_string())
             .collect();
@@ -125,9 +126,9 @@ fn parse_equation(equation: &str) -> Result<Box<dyn Process>, String> {
 ///
 /// * **`{ProcessName}`**: The name of the process (e.g., `X1`, `X_t`).
 /// * **`{expression}`**: A mathematical expression for the coefficient. This expression
-///     can use the current time (`t`) and the values of other processes (e.g., `X1`).
+///   can use the current time (`t`) and the values of other processes (e.g., `X1`).
 /// * **`{Incrementor}`**: The differential term. Currently, only `dt` (for the drift term)
-///     and `dW` (for Wiener processes, e.g., `dW1`, `dW2`) are supported.
+///   and `dW` (for Wiener processes, e.g., `dW1`, `dW2`) are supported.
 ///
 /// # Examples
 ///
