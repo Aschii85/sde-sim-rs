@@ -51,6 +51,11 @@ sde-sim-rs = { git = "https://github.com/Aschii85/sde-sim-rs", rev = "<optional 
 
 An example file for using the crate can be found in `examples/example.rs`, which can be run using `cargo run -r --example example`.
 
+### Links
+
+- **PyPI:** [Find the Python package here](https://pypi.org/project/sde-sim-rs/)
+- **Crates.io:** [Get the Rust crate here](https://crates.io/crates/sde-sim-rs)
+
 ## Contributing
 
 We welcome contributions from the community! If you'd like to contribute, please feel free to open an issue to discuss a feature or a bug fix, or submit a pull request with your changes.
