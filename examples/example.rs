@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
-use rand;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -63,9 +62,9 @@ fn main() {
         &time_steps,
         &scenarios,
         &mut *rng,
-        &scheme,
+        scheme,
     );
-    print!(
+    println!(
         "Simulation completed in {} seconds.\n",
         before.elapsed().as_secs_f64()
     );
