@@ -6,12 +6,11 @@ build-backend = "maturin"
 name = "sde-sim-rs"
 requires-python = ">=3.11,<3.14"
 authors = [
-  {name = "Alexander Schierbeck-Hansen", email = "sch13r@gmail.com"},
+  {name = "Alexander Schierbeck-Hansen", email = "aschii85@protonmail.com"},
 ]
-description = "Lovely Spam! Wonderful Spam!"
+description = "Powerful and flexible stochastic differential equation (quasi) Monte-Carlo simulation library written in Rust with Python bindings"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICEN[CS]E.*"]
 classifiers = [
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Science/Research',
@@ -37,9 +36,13 @@ dynamic = ["version"]
 dependencies = [
     "numpy>=1.24.4",
     "patchelf>=0.17.2.2",
-    "plotly>=6.2.0",
     "polars>=1.8.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Aschii85/sde-sim-rs"
+Repository = "https://github.com/Aschii85/sde-sim-rs.git"
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
@@ -53,7 +56,5 @@ include = [
 dev = [
     "ruff>=0.12.7",
     "snakeviz>=2.2.1",
+    "plotly>=6.2.0",
 ]
-
-[project.urls]
-Repository = "https://github.com/Aschii85/sde-sim-rs"
