@@ -126,7 +126,7 @@ impl SobolRng {
     {
         let dims = (timesteps.len() - 1) * increment_names.len();
         let params = sobol::params::JoeKuoD6::extended(); // Supports up to 21201 dimensions
-        let sobol_iter = sobol::Sobol::<f64>::new(dims.clone(), &params);
+        let sobol_iter = sobol::Sobol::<f64>::new(dims, &params);
         Self {
             cache: lru::LruCache::new(std::num::NonZeroUsize::new(timesteps.len() - 1).unwrap()),
             increment_names,
@@ -151,19 +151,19 @@ impl Rng for SobolRng {
         increment_name: &str,
     ) -> f64 {
         let key = (scenario, t_start, t_end);
-        if !self.cache.contains(&key) {
-            if let Some(random_numbers) = self.rng.next() {
-                let scrambled_numbers = self.scrambler.scramble(random_numbers.to_vec());
-                for (idx, ts) in self.timesteps.windows(2).enumerate() {
-                    let mut rns = std::collections::HashMap::new();
-                    for (jdx, increment_name) in self.increment_names.iter().enumerate() {
-                        rns.insert(
-                            increment_name.clone(),
-                            scrambled_numbers[jdx * self.increment_names.len() + idx],
-                        );
-                    }
-                    self.cache.put((scenario, ts[0], ts[1]), rns);
+        if !self.cache.contains(&key)
+            && let Some(random_numbers) = self.rng.next()
+        {
+            let scrambled_numbers = self.scrambler.scramble(random_numbers.to_vec());
+            for (idx, ts) in self.timesteps.windows(2).enumerate() {
+                let mut rns = std::collections::HashMap::new();
+                for (jdx, increment_name) in self.increment_names.iter().enumerate() {
+                    rns.insert(
+                        increment_name.clone(),
+                        scrambled_numbers[jdx * self.increment_names.len() + idx],
+                    );
                 }
+                self.cache.put((scenario, ts[0], ts[1]), rns);
             }
         }
         self.cache

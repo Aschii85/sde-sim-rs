@@ -7,7 +7,7 @@ use statrs::distribution::{ContinuousCDF, Normal};
 // TODO: Add other increments such as jumps/Poisson or any other stochastic processes
 
 // Use a single standard normal distribution for Wiener process sampling
-static NORMAL_STD: Lazy<Normal> = Lazy::new(|| Normal::standard());
+static NORMAL_STD: Lazy<Normal> = Lazy::new(Normal::standard);
 
 pub trait Incrementor {
     fn new(name: String) -> Self

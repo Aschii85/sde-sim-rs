@@ -27,14 +27,14 @@ pub fn euler_iteration(
 ) {
     for process in processes.iter_mut() {
         let mut result = filtration
-            .value(t_start, scenario, &process.name())
+            .value(t_start, scenario, process.name())
             .unwrap_or(0.0);
         for idx in 0..process.coefficients().len() {
-            let c = process.coefficients()[idx](&filtration, t_start, scenario);
+            let c = process.coefficients()[idx](filtration, t_start, scenario);
             let x = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
             result += c * x;
         }
-        filtration.set_value(t_end, scenario, &process.name(), result);
+        filtration.set_value(t_end, scenario, process.name(), result);
     }
 }
 
@@ -67,8 +67,8 @@ pub fn runge_kutta_iteration(
     let mut k1 = vec![0.0; processes.len()];
     let mut k2 = vec![0.0; processes.len()];
     let mut filtration_plus_k1_at_t_end = Filtration::new(
-        vec![t_end.clone()],
-        vec![scenario.clone()],
+        vec![t_end],
+        vec![scenario],
         processes.iter().map(|p| p.name().clone()).collect(),
         ndarray::Array3::<f64>::zeros((1, 1, processes.len())),
         None,
@@ -77,7 +77,7 @@ pub fn runge_kutta_iteration(
     // Calculate k1
     for (i, process) in processes.iter_mut().enumerate() {
         for idx in 0..process.coefficients().len() {
-            let c = process.coefficients()[idx](&filtration, t_start, scenario);
+            let c = process.coefficients()[idx](filtration, t_start, scenario);
             let d = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
             // NOTE: This requires the time incrementor is first. Do something more sophisticated...
             k1[i] += if idx == 0 {
@@ -90,7 +90,7 @@ pub fn runge_kutta_iteration(
             t_end,
             scenario,
             process.name(),
-            filtration.value(t_start, scenario, process.name()).unwrap() + k1[i].clone(),
+            filtration.value(t_start, scenario, process.name()).unwrap() + k1[i],
         );
     }
     // Calculate k2

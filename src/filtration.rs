@@ -46,11 +46,7 @@ impl Filtration {
         raw_values: Array3<f64>,
         initial_values: Option<HashMap<String, f64>>,
     ) -> Self {
-        let time_idx_map = times
-            .iter()
-            .enumerate()
-            .map(|(i, t)| (t.clone(), i))
-            .collect();
+        let time_idx_map = times.iter().enumerate().map(|(i, t)| (*t, i)).collect();
         let scenario_idx_map = scenarios.iter().enumerate().map(|(i, &s)| (s, i)).collect();
         let process_name_idx_map = process_names
             .iter()
@@ -140,8 +136,8 @@ impl Filtration {
     ///   initial values.
     pub fn set_initial_values(&mut self, values: HashMap<String, f64>) {
         let initial_time = self.times[0];
-        let process_names: Vec<String> = self.process_names.iter().cloned().collect();
-        let scenarios: Vec<i32> = self.scenarios.iter().copied().collect();
+        let process_names: Vec<String> = self.process_names.to_vec();
+        let scenarios: Vec<i32> = self.scenarios.to_vec();
         for scenario in scenarios {
             for process_name in &process_names {
                 let val = values.get(process_name.as_str()).copied().unwrap_or(0.0);
