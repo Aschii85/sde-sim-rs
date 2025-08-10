@@ -133,7 +133,7 @@ pub fn runge_kutta_iteration(
 pub fn simulate(
     filtration: &mut Filtration,
     processes: &mut Vec<Box<dyn Process>>,
-    time_steps: &Vec<OrderedFloat<f64>>,
+    time_steps: &[OrderedFloat<f64>],
     scenarios: &i32,
     rng: &mut dyn Rng,
     scheme: &str,

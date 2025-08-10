@@ -38,6 +38,7 @@ pub trait Rng {
 /// pseudorandom numbers for each unique time interval and scenario. It
 /// caches the generated numbers to ensure consistency if the same interval
 /// is sampled multiple times.
+#[allow(clippy::type_complexity)]
 pub struct PseudoRng {
     cache: lru::LruCache<
         (i32, OrderedFloat<f64>, OrderedFloat<f64>),
@@ -102,6 +103,7 @@ impl Rng for PseudoRng {
 /// for Monte Carlo simulations as it can lead to faster convergence. It generates
 /// a complete sequence for all time steps and increments upfront for each scenario
 /// and uses a scrambler to remove potential biases.
+#[allow(clippy::type_complexity)]
 pub struct SobolRng {
     cache: lru::LruCache<
         (i32, OrderedFloat<f64>, OrderedFloat<f64>),
