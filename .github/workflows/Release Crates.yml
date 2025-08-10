@@ -34,8 +34,7 @@ jobs:
       - name: Run rustfmt
         run: cargo fmt -- --check
       - name: Run semver checks
-        run: |
-          cargo semver-checks check-release --baseline tag
+        run: cargo semver-checks check-release
       - name: Publish to crates.io
         run: |
           cargo publish --token ${{ env.CRATES_IO_TOKEN }}
