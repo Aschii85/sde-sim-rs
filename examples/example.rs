@@ -18,7 +18,8 @@ fn main() {
     let initial_values = HashMap::from([("X1".to_string(), 1.0), ("X2".to_string(), 1.0)]);
     let equations = [
         "dX1 = (0.005 * X1) * dt + (0.02 * X1) * dW1".to_string(),
-        "dX2 = (0.005 * X2) * dt + (0.02 * X1) * dW1 + (0.01 * X2) * dW2".to_string(),
+        "dX2 = (0.005 * X2) * dt + (0.02 * X1) * dW1 + (0.01 * X2) * dW2 + (1) * dJ1(0.5)"
+            .to_string(),
     ];
     let mut processes = parse_equations(&equations).expect("Failed to parse equations");
     let scheme = "runge-kutta"; // "euler" or "runge-kutta"
@@ -70,5 +71,6 @@ fn main() {
     );
     let df: DataFrame = filtration.to_dataframe();
     println!("{}", df);
+
     assert!(before.elapsed().as_secs_f64() > 0.0);
 }

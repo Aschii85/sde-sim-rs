@@ -29,7 +29,8 @@ pub fn euler_iteration(
         let mut result = filtration
             .value(t_start, scenario, process.name())
             .unwrap_or(0.0);
-        for idx in 0..process.coefficients().len() {
+        let num_coefficients = process.coefficients().len();
+        for idx in 0..num_coefficients {
             let c = process.coefficients()[idx](filtration, t_start, scenario);
             let x = process.incrementors()[idx].sample(scenario, t_start, t_end, rng);
             result += c * x;
