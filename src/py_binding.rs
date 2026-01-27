@@ -14,7 +14,7 @@ pub fn simulate_py(
     processes_equations: Vec<String>,
     time_steps: Vec<f64>,
     scenarios: i32,
-    initial_values: HashMap<String, f64>,
+    initial_values: HashMap<String, f64>, // Bridge from Python dict
     rng_method: String,
     scheme: String,
 ) -> PyResult<PyDataFrame> {
@@ -22,7 +22,6 @@ pub fn simulate_py(
         time_steps.iter().copied().map(OrderedFloat).collect();
 
     // 1. Pre-extract names from equations to initialize Filtration indices.
-    // Equations are "dX = ...", so we split by '=' and trim 'd'.
     let process_names: Vec<String> = processes_equations
         .iter()
         .map(|eq| {
@@ -35,7 +34,8 @@ pub fn simulate_py(
         })
         .collect();
 
-    // 2. Initialize Filtration FIRST so it can provide indices to the parser.
+    // 2. Initialize Filtration FIRST.
+    // We pass the FxHashMap to match our optimized Filtration::new signature.
     let mut filtration = Filtration::new(
         time_steps_ordered.clone(),
         (1..=scenarios).collect(),
@@ -45,10 +45,11 @@ pub fn simulate_py(
             scenarios as usize,
             process_names.len(),
         )),
-        Some(initial_values),
+        Some(initial_values), // Use the original standard HashMap here
     );
 
-    // 3. Parse equations using the filtration reference for "Resolve Once" optimization.
+    // 3. Parse equations.
+    // We use Box<LevyProcess> as requested in the updated sim logic.
     let mut processes = crate::process::util::parse_equations(&processes_equations, &filtration)
         .map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(

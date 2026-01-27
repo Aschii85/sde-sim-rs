@@ -1,15 +1,16 @@
+use fxhash::FxHashMap;
 use ndarray::Array3;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 
 pub struct Filtration {
-    times: Vec<OrderedFloat<f64>>,
-    scenarios: Vec<i32>,
-    process_names: Vec<String>,
-    raw_values: Array3<f64>,
-    time_idx_map: HashMap<OrderedFloat<f64>, usize>,
-    scenario_idx_map: HashMap<i32, usize>,
-    process_name_idx_map: HashMap<String, usize>,
+    pub times: Vec<OrderedFloat<f64>>,
+    pub scenarios: Vec<i32>,
+    pub process_names: Vec<String>,
+    pub raw_values: Array3<f64>,
+    time_idx_map: FxHashMap<OrderedFloat<f64>, usize>,
+    scenario_idx_map: FxHashMap<i32, usize>,
+    process_name_idx_map: FxHashMap<String, usize>,
 }
 
 impl Filtration {
@@ -18,6 +19,7 @@ impl Filtration {
         scenarios: Vec<i32>,
         process_names: Vec<String>,
         raw_values: Array3<f64>,
+        // Accept standard HashMap for Python compatibility, convert internally
         initial_values: Option<HashMap<String, f64>>,
     ) -> Self {
         let time_idx_map = times.iter().enumerate().map(|(i, t)| (*t, i)).collect();
@@ -37,16 +39,29 @@ impl Filtration {
             scenario_idx_map,
             process_name_idx_map,
         };
+
         if let Some(values) = initial_values {
-            f.set_initial_values(values);
+            let fx_values: FxHashMap<String, f64> = values.into_iter().collect();
+            f.set_initial_values(fx_values);
         }
         f
     }
 
     /// Resolves a process name to its internal index.
-    /// Used by the parser to bake indices into the simulation logic.
     pub fn get_process_index(&self, name: &str) -> Option<usize> {
         self.process_name_idx_map.get(name).copied()
+    }
+
+    /// EXTREME PERFORMANCE PATH: Bypasses all HashMaps.
+    #[inline]
+    pub fn get_raw(&self, t_idx: usize, s_idx: usize, p_idx: usize) -> f64 {
+        self.raw_values[[t_idx, s_idx, p_idx]]
+    }
+
+    /// EXTREME PERFORMANCE PATH: Bypasses all HashMaps.
+    #[inline]
+    pub fn set_raw(&mut self, t_idx: usize, s_idx: usize, p_idx: usize, val: f64) {
+        self.raw_values[[t_idx, s_idx, p_idx]] = val;
     }
 
     /// HIGH PERFORMANCE PATH: Access values via pre-resolved process index.
@@ -102,21 +117,27 @@ impl Filtration {
         }
     }
 
-    pub fn set_initial_values(&mut self, values: HashMap<String, f64>) {
+    pub fn set_initial_values(&mut self, values: FxHashMap<String, f64>) {
         let initial_time = self.times[0];
-        for scenario in self.scenarios.clone() {
-            for process_name in self.process_names.clone() {
-                let val = values.get(&process_name).copied().unwrap_or(0.0);
-                self.set_value(initial_time, scenario, &process_name, val);
+        // FIX E0502: Clone these vectors to avoid borrowing self while mutating self
+        let scenarios = self.scenarios.clone();
+        let names = self.process_names.clone();
+
+        for scenario in scenarios {
+            for process_name in &names {
+                let val = values.get(process_name).copied().unwrap_or(0.0);
+                self.set_value(initial_time, scenario, process_name, val);
             }
         }
     }
 
     pub fn to_dataframe(&self) -> polars::prelude::DataFrame {
-        let mut time = Vec::new();
-        let mut scenario = Vec::new();
-        let mut process_name = Vec::new();
-        let mut value = Vec::new();
+        let row_count = self.times.len() * self.scenarios.len() * self.process_names.len();
+        let mut time = Vec::with_capacity(row_count);
+        let mut scenario = Vec::with_capacity(row_count);
+        let mut process_name = Vec::with_capacity(row_count);
+        let mut value = Vec::with_capacity(row_count);
+
         for (t_idx, t) in self.times.iter().enumerate() {
             for (s_idx, &s) in self.scenarios.iter().enumerate() {
                 for (p_idx, pname) in self.process_names.iter().enumerate() {
