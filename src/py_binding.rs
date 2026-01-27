@@ -18,26 +18,46 @@ pub fn simulate_py(
     rng_method: String,
     scheme: String,
 ) -> PyResult<PyDataFrame> {
-    let mut processes =
-        crate::process::util::parse_equations(&processes_equations).map_err(|e| {
+    let time_steps_ordered: Vec<OrderedFloat<f64>> =
+        time_steps.iter().copied().map(OrderedFloat).collect();
+
+    // 1. Pre-extract names from equations to initialize Filtration indices.
+    // Equations are "dX = ...", so we split by '=' and trim 'd'.
+    let process_names: Vec<String> = processes_equations
+        .iter()
+        .map(|eq| {
+            eq.split('=')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .trim_start_matches('d')
+                .to_string()
+        })
+        .collect();
+
+    // 2. Initialize Filtration FIRST so it can provide indices to the parser.
+    let mut filtration = Filtration::new(
+        time_steps_ordered.clone(),
+        (1..=scenarios).collect(),
+        process_names.clone(),
+        ndarray::Array3::<f64>::zeros((
+            time_steps_ordered.len(),
+            scenarios as usize,
+            process_names.len(),
+        )),
+        Some(initial_values),
+    );
+
+    // 3. Parse equations using the filtration reference for "Resolve Once" optimization.
+    let mut processes = crate::process::util::parse_equations(&processes_equations, &filtration)
+        .map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                 "Failed to parse process equations: {}",
                 e
             ))
         })?;
-    let time_steps_ordered: Vec<OrderedFloat<f64>> =
-        time_steps.iter().copied().map(OrderedFloat).collect();
-    let mut filtration = Filtration::new(
-        time_steps_ordered.clone(),
-        (1..=scenarios).collect(),
-        processes.iter().map(|p| p.name().clone()).collect(),
-        ndarray::Array3::<f64>::zeros((
-            time_steps_ordered.len(),
-            scenarios as usize,
-            processes.len(),
-        )),
-        Some(initial_values),
-    );
+
+    // 4. Set up RNG
     let mut rng: Box<dyn Rng> = if rng_method == "sobol" {
         Box::new(SobolRng::new(
             processes
@@ -54,6 +74,8 @@ pub fn simulate_py(
                 .collect::<Vec<String>>(),
         ))
     };
+
+    // 5. Run simulation
     simulate(
         &mut filtration,
         &mut processes,
@@ -62,6 +84,7 @@ pub fn simulate_py(
         &mut *rng,
         &scheme,
     );
+
     let df: DataFrame = filtration.to_dataframe();
     Ok(PyDataFrame(df))
 }
