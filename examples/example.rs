@@ -60,7 +60,7 @@ fn main() {
         Box::new(SobolRng::new(
             processes
                 .iter_mut()
-                .flat_map(|p| p.incrementors().iter_mut().map(|i| i.name().clone()))
+                .flat_map(|p| p.incrementors.iter_mut().map(|i| i.name().clone()))
                 .collect::<Vec<String>>(),
             time_steps.clone(),
         ))
@@ -68,7 +68,7 @@ fn main() {
         Box::new(PseudoRng::new(
             processes
                 .iter_mut()
-                .flat_map(|p| p.incrementors().iter_mut().map(|i| i.name().clone()))
+                .flat_map(|p| p.incrementors.iter_mut().map(|i| i.name().clone()))
                 .collect::<Vec<String>>(),
         ))
     };

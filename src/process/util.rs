@@ -1,5 +1,5 @@
 use crate::filtration::Filtration;
-use crate::process::{CoefficientFn, Process, increment::*, levy::LevyProcess};
+use crate::process::{CoefficientFn, LevyProcess, increment::*};
 use fasteval::{Compiler, Evaler, Instruction, Slab};
 use ordered_float::OrderedFloat;
 use regex::Regex;
@@ -35,7 +35,7 @@ impl CompiledCoefficient {
 pub fn parse_equations(
     equations: &[String],
     filtration: &Filtration,
-) -> Result<Vec<Box<dyn Process>>, String> {
+) -> Result<Vec<Box<LevyProcess>>, String> {
     let mut processes = Vec::with_capacity(equations.len());
     for eq in equations {
         processes.push(parse_equation(eq, filtration)?);
@@ -43,7 +43,7 @@ pub fn parse_equations(
     Ok(processes)
 }
 
-pub fn parse_equation(equation: &str, filtration: &Filtration) -> Result<Box<dyn Process>, String> {
+pub fn parse_equation(equation: &str, filtration: &Filtration) -> Result<Box<LevyProcess>, String> {
     let parts: Vec<&str> = equation.split('=').collect();
     if parts.len() != 2 {
         return Err("Missing '='".into());

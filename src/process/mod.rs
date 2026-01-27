@@ -1,6 +1,4 @@
 pub mod increment;
-pub mod ito;
-pub mod levy;
 pub mod util;
 
 use crate::filtration::Filtration;
@@ -9,8 +7,25 @@ use ordered_float::OrderedFloat;
 
 pub type CoefficientFn = dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64;
 
-pub trait Process {
-    fn name(&self) -> &String;
-    fn coefficients(&self) -> &Vec<Box<CoefficientFn>>;
-    fn incrementors(&mut self) -> &mut Vec<Box<dyn Incrementor>>;
+pub struct LevyProcess {
+    pub name: String,
+    pub coefficients: Vec<Box<CoefficientFn>>,
+    pub incrementors: Vec<Box<dyn Incrementor>>,
+}
+
+impl LevyProcess {
+    pub fn new(
+        name: String,
+        coefficients: Vec<Box<CoefficientFn>>,
+        incrementors: Vec<Box<dyn Incrementor>>,
+    ) -> Result<Self, String> {
+        if coefficients.len() != incrementors.len() {
+            return Err("coefficients and incrementors must have the same length".to_string());
+        }
+        Ok(Self {
+            name,
+            coefficients,
+            incrementors,
+        })
+    }
 }

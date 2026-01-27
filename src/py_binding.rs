@@ -62,7 +62,7 @@ pub fn simulate_py(
         Box::new(SobolRng::new(
             processes
                 .iter_mut()
-                .flat_map(|p| p.incrementors().iter_mut().map(|i| i.name().clone()))
+                .flat_map(|p| p.incrementors.iter_mut().map(|i| i.name().clone()))
                 .collect::<Vec<String>>(),
             time_steps_ordered.clone(),
         ))
@@ -70,7 +70,7 @@ pub fn simulate_py(
         Box::new(PseudoRng::new(
             processes
                 .iter_mut()
-                .flat_map(|p| p.incrementors().iter_mut().map(|i| i.name().clone()))
+                .flat_map(|p| p.incrementors.iter_mut().map(|i| i.name().clone()))
                 .collect::<Vec<String>>(),
         ))
     };
