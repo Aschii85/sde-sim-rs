@@ -1,49 +1,70 @@
-use crate::filtration::Filtration;
 use crate::process::{CoefficientFn, LevyProcess, increment::*};
 use fasteval::{Compiler, Evaler, Instruction, Slab};
 use ordered_float::OrderedFloat;
 use regex::Regex;
 use std::sync::Arc;
+use std::sync::Mutex;
 
-/// Optimized coefficient that bypasses string lookups in the hot loop.
+enum ResolvedVar {
+    Time,
+    Process(usize),
+}
+
 struct CompiledCoefficient {
     instruction: Instruction,
     slab: Slab,
-    // (Variable name in SDE string, resolved index in Filtration)
-    var_index_map: Vec<(String, usize)>,
+    // Store which names we found and where they point
+    bound_vars: Vec<(String, ResolvedVar)>,
 }
 
-impl CompiledCoefficient {
-    fn eval(&self, f: &Filtration, t: OrderedFloat<f64>, s: i32) -> f64 {
-        let mut ns = |name: &str, _args: Vec<f64>| -> Option<f64> {
-            if name == "t" {
-                return Some(t.0);
-            }
+// Global mutable vector wrapped in a Mutex
+static _INCREMENTORS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
-            // Linear search of dependencies: Very fast for N < 5
-            for (var_name, idx) in &self.var_index_map {
+impl CompiledCoefficient {
+    fn eval(&self, current_values: &[f64], t: f64) -> f64 {
+        let mut cb = |name: &str, _args: Vec<f64>| -> Option<f64> {
+            for (var_name, binding) in &self.bound_vars {
                 if name == var_name {
-                    return f.value_by_index(t, s, *idx).ok();
+                    return match binding {
+                        ResolvedVar::Time => Some(t),
+                        ResolvedVar::Process(idx) => Some(current_values[*idx]),
+                    };
                 }
             }
             None
         };
-        self.instruction.eval(&self.slab, &mut ns).unwrap_or(0.0)
+        self.instruction.eval(&self.slab, &mut cb).unwrap_or(0.0)
     }
 }
 
 pub fn parse_equations(
     equations: &[String],
-    filtration: &Filtration,
+    timesteps: Vec<OrderedFloat<f64>>,
 ) -> Result<Vec<Box<LevyProcess>>, String> {
+    let process_names: Vec<String> = equations
+        .iter()
+        .map(|eq| {
+            eq.split('=')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .trim_start_matches('d')
+                .to_string()
+        })
+        .collect();
+
     let mut processes = Vec::with_capacity(equations.len());
     for eq in equations {
-        processes.push(parse_equation(eq, filtration)?);
+        processes.push(parse_equation(eq, &process_names, timesteps.clone())?);
     }
     Ok(processes)
 }
 
-pub fn parse_equation(equation: &str, filtration: &Filtration) -> Result<Box<LevyProcess>, String> {
+pub fn parse_equation(
+    equation: &str,
+    all_process_names: &[String],
+    timesteps: Vec<OrderedFloat<f64>>,
+) -> Result<Box<LevyProcess>, String> {
     let parts: Vec<&str> = equation.split('=').collect();
     if parts.len() != 2 {
         return Err("Missing '='".into());
@@ -57,38 +78,42 @@ pub fn parse_equation(equation: &str, filtration: &Filtration) -> Result<Box<Lev
 
     let term_pattern =
         Regex::new(r"\(([^)]*(?:\([^)]*\)[^)]*)*)\)\s*\*\s*(d[tWJ][\w\(\d\.\)]*)").unwrap();
-    let var_pattern = Regex::new(r"[XYZ]\w*").unwrap();
 
     for cap in term_pattern.captures_iter(rhs) {
         let expr_str = &cap[1];
         let inc_str = &cap[2];
 
         let mut slab = Slab::new();
-        let instruction = fasteval::Parser::new()
+        let parser = fasteval::Parser::new();
+        let expr = parser
             .parse(expr_str, &mut slab.ps)
-            .map_err(|e| format!("Fasteval error: {:?}", e))?
-            .from(&slab.ps)
-            .compile(&slab.ps, &mut slab.cs);
+            .map_err(|e| format!("{:?}", e))?;
+        let instruction = expr.from(&slab.ps).compile(&slab.ps, &mut slab.cs);
 
-        // MAP STRINGS TO INDICES ONCE
-        let mut var_index_map = Vec::new();
-        for m in var_pattern.find_iter(expr_str) {
-            let var_name = m.as_str();
-            if let Some(idx) = filtration.get_process_index(var_name) {
-                var_index_map.push((var_name.to_string(), idx));
+        // Map any variables found in the string to our indices
+        let mut bound_vars = Vec::new();
+        if expr_str.contains('t') {
+            bound_vars.push(("t".to_string(), ResolvedVar::Time));
+        }
+        for (idx, p_name) in all_process_names.iter().enumerate() {
+            if expr_str.contains(p_name) {
+                bound_vars.push((p_name.clone(), ResolvedVar::Process(idx)));
             }
         }
 
         let compiled = Arc::new(CompiledCoefficient {
             instruction,
             slab,
-            var_index_map,
+            bound_vars,
         });
         let compiled_clone = Arc::clone(&compiled);
-        let coeff_fn: Box<CoefficientFn> = Box::new(move |f, t, s| compiled_clone.eval(f, t, s));
+
+        // Matches the updated CoefficientFn signature (4 args)
+        let coeff_fn: Box<CoefficientFn> =
+            Box::new(move |_f, values, t, _s| compiled_clone.eval(values, t));
 
         coefficients.push(coeff_fn);
-        incrementors.push(parse_incrementor(inc_str)?);
+        incrementors.push(parse_incrementor(inc_str, timesteps.clone())?);
     }
 
     Ok(Box::new(LevyProcess::new(
@@ -98,22 +123,46 @@ pub fn parse_equation(equation: &str, filtration: &Filtration) -> Result<Box<Lev
     )?))
 }
 
-fn parse_incrementor(s: &str) -> Result<Box<dyn Incrementor>, String> {
-    if s == "dt" {
-        Ok(Box::new(TimeIncrementor::new()))
-    } else if s.starts_with("dW") {
-        Ok(Box::new(WienerIncrementor::new(s.to_string())))
-    } else if s.starts_with("dJ") {
+fn parse_incrementor(
+    inc_str: &str,
+    timesteps: Vec<OrderedFloat<f64>>,
+) -> Result<Box<dyn Incrementor>, String> {
+    let incrementor_idx = if inc_str != "dt" {
+        let mut list = _INCREMENTORS.lock().unwrap();
+        if let Some(index) = list.iter().position(|s| s == inc_str) {
+            index
+        } else {
+            list.push(inc_str.to_string());
+            list.len() - 1
+        }
+    } else {
+        0
+    };
+
+    if inc_str == "dt" {
+        Ok(Box::new(TimeIncrementor::new(timesteps)))
+    } else if inc_str.starts_with("dW") {
+        Ok(Box::new(WienerIncrementor::new(incrementor_idx, timesteps)))
+    } else if inc_str.starts_with("dJ") {
         let re = Regex::new(r"dJ\w*\(([^)]+)\)").unwrap();
         let val = re
-            .captures(s)
+            .captures(inc_str)
             .and_then(|c| c.get(1))
             .map(|m| m.as_str().parse::<f64>())
             .transpose()
             .map_err(|_| "Bad lambda".to_string())?
             .ok_or_else(|| "Lambda missing".to_string())?;
-        Ok(Box::new(JumpIncrementor::new(s.to_string(), val)))
+        Ok(Box::new(JumpIncrementor::new(
+            incrementor_idx,
+            val,
+            timesteps,
+        )))
     } else {
-        Err(format!("Unknown: {}", s))
+        Err(format!("Unknown incrementor: {}", inc_str))
     }
+}
+
+pub fn num_incrementors() -> usize {
+    let list = _INCREMENTORS.lock().unwrap();
+    list.len()
 }

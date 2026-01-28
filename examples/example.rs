@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use sde_sim_rs::filtration::Filtration;
-use sde_sim_rs::process::util::parse_equations;
+use sde_sim_rs::process::util::{num_incrementors, parse_equations};
 use sde_sim_rs::rng::{PseudoRng, Rng, SobolRng};
 use sde_sim_rs::sim::simulate;
 
@@ -29,7 +29,7 @@ fn main() {
         .take_while(|t| t.0 <= t_end)
         .collect();
 
-    // 2. Pre-extract process names for Filtration initialization
+    // 2. Pre-extract process names
     let process_names: Vec<String> = equations
         .iter()
         .map(|eq| {
@@ -42,7 +42,7 @@ fn main() {
         })
         .collect();
 
-    // 3. Initialize Filtration (Container must exist for the parser to resolve indices)
+    // 3. Initialize Filtration
     let mut filtration = Filtration::new(
         time_steps.clone(),
         (1..=scenarios).collect(),
@@ -51,31 +51,21 @@ fn main() {
         Some(initial_values),
     );
 
-    // 4. Parse equations using the filtration reference
+    // 4. Parse equations
     let mut processes =
-        parse_equations(&equations, &filtration).expect("Failed to parse equations");
+        parse_equations(&equations, time_steps.clone()).expect("Failed to parse equations");
 
-    // 5. Setup RNG
+    // 5. Setup RNG (Updated to match new trait signatures)
     let mut rng: Box<dyn Rng> = if rng_scheme == "sobol" {
-        Box::new(SobolRng::new(
-            processes
-                .iter_mut()
-                .flat_map(|p| p.incrementors.iter_mut().map(|i| i.name().clone()))
-                .collect::<Vec<String>>(),
-            time_steps.clone(),
-        ))
+        Box::new(SobolRng::new(num_incrementors(), time_steps.len()))
     } else {
-        Box::new(PseudoRng::new(
-            processes
-                .iter_mut()
-                .flat_map(|p| p.incrementors.iter_mut().map(|i| i.name().clone()))
-                .collect::<Vec<String>>(),
-        ))
+        // PseudoRng now takes zero arguments
+        Box::new(PseudoRng::new(num_incrementors()))
     };
 
     // Run Simulation
     let before = Instant::now();
-    println!("Starting simulation...");
+    println!("Starting simulation with {} RNG...", rng_scheme);
     simulate(
         &mut filtration,
         &mut processes,

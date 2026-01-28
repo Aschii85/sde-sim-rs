@@ -8,9 +8,9 @@ pub struct Filtration {
     pub scenarios: Vec<i32>,
     pub process_names: Vec<String>,
     pub raw_values: Array3<f64>,
-    time_idx_map: FxHashMap<OrderedFloat<f64>, usize>,
-    scenario_idx_map: FxHashMap<i32, usize>,
-    process_name_idx_map: FxHashMap<String, usize>,
+    pub time_idx_map: FxHashMap<OrderedFloat<f64>, usize>, // Made pub for sim.rs
+    pub scenario_idx_map: FxHashMap<i32, usize>,           // Made pub for sim.rs
+    pub process_name_idx_map: FxHashMap<String, usize>,
 }
 
 impl Filtration {
@@ -19,7 +19,6 @@ impl Filtration {
         scenarios: Vec<i32>,
         process_names: Vec<String>,
         raw_values: Array3<f64>,
-        // Accept standard HashMap for Python compatibility, convert internally
         initial_values: Option<HashMap<String, f64>>,
     ) -> Self {
         let time_idx_map = times.iter().enumerate().map(|(i, t)| (*t, i)).collect();
@@ -47,24 +46,16 @@ impl Filtration {
         f
     }
 
-    /// Resolves a process name to its internal index.
-    pub fn get_process_index(&self, name: &str) -> Option<usize> {
-        self.process_name_idx_map.get(name).copied()
-    }
-
-    /// EXTREME PERFORMANCE PATH: Bypasses all HashMaps.
     #[inline]
     pub fn get_raw(&self, t_idx: usize, s_idx: usize, p_idx: usize) -> f64 {
         self.raw_values[[t_idx, s_idx, p_idx]]
     }
 
-    /// EXTREME PERFORMANCE PATH: Bypasses all HashMaps.
     #[inline]
     pub fn set_raw(&mut self, t_idx: usize, s_idx: usize, p_idx: usize, val: f64) {
         self.raw_values[[t_idx, s_idx, p_idx]] = val;
     }
 
-    /// HIGH PERFORMANCE PATH: Access values via pre-resolved process index.
     #[inline]
     pub fn value_by_index(
         &self,
@@ -93,18 +84,6 @@ impl Filtration {
         Some((time_idx, scenario_idx, process_idx))
     }
 
-    pub fn value(
-        &self,
-        time: OrderedFloat<f64>,
-        scenario: i32,
-        process_name: &str,
-    ) -> Result<f64, String> {
-        match self.indices(time, scenario, process_name) {
-            Some(idx) => Ok(self.raw_values[idx]),
-            None => Err(format!("No value found for process: {}", process_name)),
-        }
-    }
-
     pub fn set_value(
         &mut self,
         time: OrderedFloat<f64>,
@@ -119,7 +98,6 @@ impl Filtration {
 
     pub fn set_initial_values(&mut self, values: FxHashMap<String, f64>) {
         let initial_time = self.times[0];
-        // FIX E0502: Clone these vectors to avoid borrowing self while mutating self
         let scenarios = self.scenarios.clone();
         let names = self.process_names.clone();
 

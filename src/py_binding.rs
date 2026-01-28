@@ -14,14 +14,13 @@ pub fn simulate_py(
     processes_equations: Vec<String>,
     time_steps: Vec<f64>,
     scenarios: i32,
-    initial_values: HashMap<String, f64>, // Bridge from Python dict
+    initial_values: HashMap<String, f64>,
     rng_method: String,
     scheme: String,
 ) -> PyResult<PyDataFrame> {
     let time_steps_ordered: Vec<OrderedFloat<f64>> =
         time_steps.iter().copied().map(OrderedFloat).collect();
 
-    // 1. Pre-extract names from equations to initialize Filtration indices.
     let process_names: Vec<String> = processes_equations
         .iter()
         .map(|eq| {
@@ -34,8 +33,6 @@ pub fn simulate_py(
         })
         .collect();
 
-    // 2. Initialize Filtration FIRST.
-    // We pass the FxHashMap to match our optimized Filtration::new signature.
     let mut filtration = Filtration::new(
         time_steps_ordered.clone(),
         (1..=scenarios).collect(),
@@ -45,38 +42,25 @@ pub fn simulate_py(
             scenarios as usize,
             process_names.len(),
         )),
-        Some(initial_values), // Use the original standard HashMap here
+        Some(initial_values),
     );
 
-    // 3. Parse equations.
-    // We use Box<LevyProcess> as requested in the updated sim logic.
-    let mut processes = crate::process::util::parse_equations(&processes_equations, &filtration)
-        .map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                "Failed to parse process equations: {}",
-                e
-            ))
-        })?;
+    let mut processes =
+        crate::process::util::parse_equations(&processes_equations, time_steps_ordered.clone())
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Failed to parse process equations: {}",
+                    e
+                ))
+            })?;
 
-    // 4. Set up RNG
+    let num_incrementors = crate::process::util::num_incrementors();
     let mut rng: Box<dyn Rng> = if rng_method == "sobol" {
-        Box::new(SobolRng::new(
-            processes
-                .iter_mut()
-                .flat_map(|p| p.incrementors.iter_mut().map(|i| i.name().clone()))
-                .collect::<Vec<String>>(),
-            time_steps_ordered.clone(),
-        ))
+        Box::new(SobolRng::new(num_incrementors, time_steps_ordered.len()))
     } else {
-        Box::new(PseudoRng::new(
-            processes
-                .iter_mut()
-                .flat_map(|p| p.incrementors.iter_mut().map(|i| i.name().clone()))
-                .collect::<Vec<String>>(),
-        ))
+        Box::new(PseudoRng::new(num_incrementors))
     };
 
-    // 5. Run simulation
     simulate(
         &mut filtration,
         &mut processes,

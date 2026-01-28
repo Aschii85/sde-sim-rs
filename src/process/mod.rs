@@ -3,9 +3,9 @@ pub mod util;
 
 use crate::filtration::Filtration;
 use crate::process::increment::Incrementor;
-use ordered_float::OrderedFloat;
 
-pub type CoefficientFn = dyn Fn(&Filtration, OrderedFloat<f64>, i32) -> f64;
+// Updated: Now takes the slice of values for O(1) math evaluation
+pub type CoefficientFn = dyn Fn(&Filtration, &[f64], f64, i32) -> f64 + Send + Sync;
 
 pub struct LevyProcess {
     pub name: String,
@@ -20,7 +20,7 @@ impl LevyProcess {
         incrementors: Vec<Box<dyn Incrementor>>,
     ) -> Result<Self, String> {
         if coefficients.len() != incrementors.len() {
-            return Err("coefficients and incrementors must have the same length".to_string());
+            return Err("Number of coefficients must match incrementors".into());
         }
         Ok(Self {
             name,

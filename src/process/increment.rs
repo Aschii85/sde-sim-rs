@@ -1,163 +1,165 @@
 use crate::rng::Rng;
 use ordered_float::OrderedFloat;
-use statrs::distribution::{ContinuousCDF, DiscreteCDF, Normal, Poisson};
+
+// TODO: In this and rng use uint for scenario, incrementor and time indices for performance?
 
 pub trait Incrementor {
-    fn sample(
-        &mut self,
-        scenario: i32,
-        t_start: OrderedFloat<f64>,
-        t_end: OrderedFloat<f64>,
-        rng: &mut dyn Rng,
-    ) -> f64;
-    fn name(&self) -> &String;
+    fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64;
 }
 
 /// Simple register to cache the very last calculated value.
 #[derive(Clone)]
 struct LastValue {
-    scenario: i32,
-    t_start: OrderedFloat<f64>,
-    t_end: OrderedFloat<f64>,
+    time_idx: usize,
+    scenario_idx: usize,
     value: f64,
 }
 
 #[derive(Clone)]
 pub struct TimeIncrementor {
-    name: String,
+    dts: Vec<f64>,
 }
 
 impl TimeIncrementor {
-    pub fn new() -> Self {
-        Self {
-            name: "dt".to_string(),
-        }
+    pub fn new(timesteps: Vec<OrderedFloat<f64>>) -> Self {
+        let dts: Vec<f64> = timesteps
+            .windows(2)
+            .map(|w| (w[1] - w[0]).into_inner())
+            .collect();
+        Self { dts }
     }
 }
 
 impl Incrementor for TimeIncrementor {
-    fn sample(
-        &mut self,
-        _s: i32,
-        t0: OrderedFloat<f64>,
-        t1: OrderedFloat<f64>,
-        _rng: &mut dyn Rng,
-    ) -> f64 {
-        (t1 - t0).into_inner()
-    }
-    fn name(&self) -> &String {
-        &self.name
+    #[inline]
+    fn sample(&mut self, time_idx: usize, _scenario_idx: usize, _rng: &mut dyn Rng) -> f64 {
+        self.dts[time_idx]
     }
 }
 
 #[derive(Clone)]
 pub struct WienerIncrementor {
     last: Option<LastValue>,
-    name: String,
-    dist: Normal,
+    idx: usize,
+    sqrt_dts: Vec<f64>,
 }
 
 impl WienerIncrementor {
-    pub fn new(name: String) -> Self {
+    pub fn new(idx: usize, timesteps: Vec<OrderedFloat<f64>>) -> Self {
+        let sqrt_dts: Vec<f64> = timesteps
+            .windows(2)
+            .map(|w| (w[1] - w[0]).into_inner())
+            .map(|dt| dt.sqrt())
+            .collect();
         Self {
             last: None,
-            name,
-            dist: Normal::standard(),
+            idx,
+            sqrt_dts,
         }
     }
 }
 
 impl Incrementor for WienerIncrementor {
     #[inline]
-    fn sample(
-        &mut self,
-        scenario: i32,
-        t_start: OrderedFloat<f64>,
-        t_end: OrderedFloat<f64>,
-        rng: &mut dyn Rng,
-    ) -> f64 {
-        // Check "Register" instead of Hash Table
+    fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64 {
         if let Some(ref last) = self.last {
-            if last.scenario == scenario && last.t_start == t_start && last.t_end == t_end {
+            if last.scenario_idx == scenario_idx && last.time_idx == time_idx {
                 return last.value;
             }
         }
-
-        let q = rng.sample(scenario, t_start, t_end, &self.name);
-        let increment = (t_end - t_start).sqrt() * self.dist.inverse_cdf(q);
-
+        let q = rng.sample(time_idx, scenario_idx, self.idx);
+        let increment = self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q);
         self.last = Some(LastValue {
-            scenario,
-            t_start,
-            t_end,
+            time_idx,
+            scenario_idx,
             value: increment,
         });
         increment
-    }
-    fn name(&self) -> &String {
-        &self.name
     }
 }
 
 #[derive(Clone)]
 pub struct JumpIncrementor {
-    last: Option<LastValue>,
-    name: String,
     lambda: f64,
+    last: Option<LastValue>,
+    idx: usize,
+    dts: Vec<f64>,
 }
 
 impl JumpIncrementor {
-    pub fn new(name: String, lambda: f64) -> Self {
+    pub fn new(idx: usize, lambda: f64, timesteps: Vec<OrderedFloat<f64>>) -> Self {
+        let dts: Vec<f64> = timesteps
+            .windows(2)
+            .map(|w| (w[1] - w[0]).into_inner())
+            .collect();
         Self {
-            last: None,
-            name,
             lambda,
+            last: None,
+            idx,
+            dts,
         }
     }
 }
 
 impl Incrementor for JumpIncrementor {
     #[inline]
-    fn sample(
-        &mut self,
-        scenario: i32,
-        t_start: OrderedFloat<f64>,
-        t_end: OrderedFloat<f64>,
-        rng: &mut dyn Rng,
-    ) -> f64 {
+    fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64 {
         if let Some(ref last) = self.last {
-            if last.scenario == scenario && last.t_start == t_start && last.t_end == t_end {
+            if last.scenario_idx == scenario_idx && last.time_idx == time_idx {
                 return last.value;
             }
         }
-
-        let u = rng.sample(scenario, t_start, t_end, &self.name);
-        let dt = (t_end - t_start).into_inner();
-        let effective_lambda = self.lambda * dt;
-
-        let num_jumps = if let Ok(dist) = Poisson::new(effective_lambda) {
-            let mut result = 0.0;
-            // Removed redundant p_sum assignment
-            for j in 0..1000 {
-                if dist.cdf(j) >= u {
-                    result = j as f64;
-                    break;
-                }
-            }
-            result
-        } else {
-            0.0
-        };
-
+        let u = rng.sample(time_idx, scenario_idx, self.idx);
+        let effective_lambda = self.lambda * self.dts[time_idx];
+        let num_jumps = fast_inverse_poisson_cdf(u, effective_lambda) as f64;
         self.last = Some(LastValue {
-            scenario,
-            t_start,
-            t_end,
+            time_idx,
+            scenario_idx,
             value: num_jumps,
         });
         num_jumps
     }
-    fn name(&self) -> &String {
-        &self.name
+}
+
+// Inverse cdff functions
+#[inline]
+fn fast_inverse_normal_cdf(p: f64) -> f64 {
+    // High-precision approximation (Acklam's or similar)
+    // For brevity, here is a standard efficient approximation
+    // often used in high-performance simulators:
+    let t = if p < 0.5 {
+        (-2.0 * p.ln()).sqrt()
+    } else {
+        (-2.0 * (1.0 - p).ln()).sqrt()
+    };
+    let c0 = 2.515517;
+    let c1 = 0.802853;
+    let c2 = 0.010328;
+    let d1 = 1.432788;
+    let d2 = 0.189269;
+    let d3 = 0.001308;
+
+    let x = t - ((c2 * t + c1) * t + c0) / (((d3 * t + d2) * t + d1) * t + 1.0);
+    if p < 0.5 { -x } else { x }
+}
+
+#[inline]
+fn fast_inverse_poisson_cdf(u: f64, lambda: f64) -> u64 {
+    if lambda <= 0.0 {
+        return 0;
     }
+    // Initial probability P(X=0) = e^(-lambda)
+    let mut p = (-lambda).exp();
+    let mut f = p; // Cumulative distribution function value
+    let mut k = 0;
+    // Iterate until the cumulative probability exceeds our uniform sample
+    // A cap of 200 is used for numerical safety, though for small lambda
+    // it will resolve much earlier.
+    while u > f && k < 200 {
+        k += 1;
+        // Recurrence: P(X=k) = P(X=k-1) * lambda / k
+        p *= lambda / (k as f64);
+        f += p;
+    }
+    k
 }
