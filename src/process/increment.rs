@@ -3,8 +3,15 @@ use ordered_float::OrderedFloat;
 
 // TODO: In this and rng use uint for scenario, incrementor and time indices for performance?
 
-pub trait Incrementor {
+pub trait Incrementor: Send + Sync {
     fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64;
+    fn clone_box(&self) -> Box<dyn Incrementor>;
+}
+
+impl Clone for Box<dyn Incrementor> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
 }
 
 /// Simple register to cache the very last calculated value.
@@ -34,6 +41,9 @@ impl Incrementor for TimeIncrementor {
     #[inline]
     fn sample(&mut self, time_idx: usize, _scenario_idx: usize, _rng: &mut dyn Rng) -> f64 {
         self.dts[time_idx]
+    }
+    fn clone_box(&self) -> Box<dyn Incrementor> {
+        Box::new(self.clone())
     }
 }
 
@@ -75,6 +85,9 @@ impl Incrementor for WienerIncrementor {
             value: increment,
         });
         increment
+    }
+    fn clone_box(&self) -> Box<dyn Incrementor> {
+        Box::new(self.clone())
     }
 }
 
@@ -118,6 +131,9 @@ impl Incrementor for JumpIncrementor {
             value: num_jumps,
         });
         num_jumps
+    }
+    fn clone_box(&self) -> Box<dyn Incrementor> {
+        Box::new(self.clone())
     }
 }
 

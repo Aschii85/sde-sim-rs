@@ -73,7 +73,7 @@ pub fn parse_equation(
     let name = parts[0].trim().trim_start_matches('d').to_string();
     let rhs = parts[1].trim();
 
-    let mut coefficients: Vec<Box<CoefficientFn>> = Vec::new();
+    let mut coefficients: Vec<Arc<CoefficientFn>> = Vec::new();
     let mut incrementors: Vec<Box<dyn Incrementor>> = Vec::new();
 
     let term_pattern =
@@ -108,9 +108,9 @@ pub fn parse_equation(
         });
         let compiled_clone = Arc::clone(&compiled);
 
-        // Matches the updated CoefficientFn signature (4 args)
-        let coeff_fn: Box<CoefficientFn> =
-            Box::new(move |_f, values, t, _s| compiled_clone.eval(values, t));
+        let coeff_fn: Arc<CoefficientFn> = Arc::new(move |f, t, t_idx, s_idx| {
+            compiled_clone.eval(f.get_processes_slice(s_idx, t_idx), t.0)
+        });
 
         coefficients.push(coeff_fn);
         incrementors.push(parse_incrementor(inc_str, timesteps.clone())?);

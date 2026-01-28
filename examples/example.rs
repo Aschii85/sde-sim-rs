@@ -29,33 +29,19 @@ fn main() {
         .take_while(|t| t.0 <= t_end)
         .collect();
 
-    // 2. Pre-extract process names
-    let process_names: Vec<String> = equations
-        .iter()
-        .map(|eq| {
-            eq.split('=')
-                .next()
-                .unwrap_or("")
-                .trim()
-                .trim_start_matches('d')
-                .to_string()
-        })
-        .collect();
+    // 2. Parse equations
+    let processes =
+        parse_equations(&equations, time_steps.clone()).expect("Failed to parse equations");
 
     // 3. Initialize Filtration
     let mut filtration = Filtration::new(
         time_steps.clone(),
         (1..=scenarios).collect(),
-        process_names.clone(),
-        ndarray::Array3::<f64>::zeros((time_steps.len(), scenarios as usize, process_names.len())),
+        processes,
         Some(initial_values),
     );
 
-    // 4. Parse equations
-    let mut processes =
-        parse_equations(&equations, time_steps.clone()).expect("Failed to parse equations");
-
-    // 5. Setup RNG (Updated to match new trait signatures)
+    // 4. Setup RNG
     let mut rng: Box<dyn Rng> = if rng_scheme == "sobol" {
         Box::new(SobolRng::new(num_incrementors(), time_steps.len()))
     } else {
@@ -66,14 +52,7 @@ fn main() {
     // Run Simulation
     let before = Instant::now();
     println!("Starting simulation with {} RNG...", rng_scheme);
-    simulate(
-        &mut filtration,
-        &mut processes,
-        &time_steps,
-        &scenarios,
-        &mut *rng,
-        scheme,
-    );
+    simulate(&mut filtration, &mut *rng, scheme);
 
     let duration = before.elapsed();
     println!(

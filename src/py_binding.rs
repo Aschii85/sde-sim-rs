@@ -21,31 +21,7 @@ pub fn simulate_py(
     let time_steps_ordered: Vec<OrderedFloat<f64>> =
         time_steps.iter().copied().map(OrderedFloat).collect();
 
-    let process_names: Vec<String> = processes_equations
-        .iter()
-        .map(|eq| {
-            eq.split('=')
-                .next()
-                .unwrap_or("")
-                .trim()
-                .trim_start_matches('d')
-                .to_string()
-        })
-        .collect();
-
-    let mut filtration = Filtration::new(
-        time_steps_ordered.clone(),
-        (1..=scenarios).collect(),
-        process_names.clone(),
-        ndarray::Array3::<f64>::zeros((
-            time_steps_ordered.len(),
-            scenarios as usize,
-            process_names.len(),
-        )),
-        Some(initial_values),
-    );
-
-    let mut processes =
+    let processes =
         crate::process::util::parse_equations(&processes_equations, time_steps_ordered.clone())
             .map_err(|e| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
@@ -54,6 +30,13 @@ pub fn simulate_py(
                 ))
             })?;
 
+    let mut filtration = Filtration::new(
+        time_steps_ordered.clone(),
+        (1..=scenarios).collect(),
+        processes,
+        Some(initial_values),
+    );
+
     let num_incrementors = crate::process::util::num_incrementors();
     let mut rng: Box<dyn Rng> = if rng_method == "sobol" {
         Box::new(SobolRng::new(num_incrementors, time_steps_ordered.len()))
@@ -61,14 +44,7 @@ pub fn simulate_py(
         Box::new(PseudoRng::new(num_incrementors))
     };
 
-    simulate(
-        &mut filtration,
-        &mut processes,
-        &time_steps_ordered,
-        &scenarios,
-        &mut *rng,
-        &scheme,
-    );
+    simulate(&mut filtration, &mut *rng, &scheme);
 
     let df: DataFrame = filtration.to_dataframe();
     Ok(PyDataFrame(df))
