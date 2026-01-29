@@ -3,6 +3,10 @@ name: Run tests
 on:
   pull_request:
     types: [edited]
+  push:
+    branches:
+      - main
+      - master
 
 jobs:
   run-tests:
@@ -14,7 +18,7 @@ jobs:
           node-version: 16
       - uses: actions/setup-python@v3
         with:
-          python-version: '3.13'
+          python-version: "3.13"
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: clippy, rustfmt

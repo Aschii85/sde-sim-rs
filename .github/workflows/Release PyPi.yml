@@ -7,13 +7,8 @@ name: Release PyPi
 
 on:
   push:
-    branches:
-      - main
-      - master
     tags:
-      - '*'
-  pull_request:
-  workflow_dispatch:
+      - "v*" # Trigger on tags starting with "v"
 
 permissions:
   contents: read
@@ -118,8 +113,6 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: macos-13
-            target: x86_64
           - runner: macos-14
             target: aarch64
         python-version: ["3.11", "3.12", "3.13"]
@@ -172,7 +165,7 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: 'wheels-*/*'
+          subject-path: "wheels-*/*"
       - name: Publish to PyPI
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: PyO3/maturin-action@v1
