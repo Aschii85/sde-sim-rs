@@ -8,7 +8,6 @@ def main():
     mu = 0.05
     sigma = 0.1
     start_value = 1.0
-    expectation = lambda t: start_value * np.exp(mu * t)
 
     df: pl.DataFrame = sde_sim_rs.simulate(
         processes_equations=[
@@ -17,7 +16,7 @@ def main():
         time_steps=list(np.arange(0.0, 10.0, 0.1)),
         scenarios=10000,
         initial_values={"X1": start_value},
-        rng_method="sobol",
+        rng_method="pseudo",
         scheme="runge-kutta",
     )
     print(df)
@@ -45,7 +44,7 @@ def main():
     )
     fig.add_scatter(
         x=mean_df["time"],
-        y=expectation(mean_df["time"]),
+        y=[start_value * np.exp(mu * t) for t in mean_df["time"]],
         mode="lines",
         name="Expectation",
         line=dict(dash="dash"),

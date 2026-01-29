@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use sde_sim_rs::filtration::Filtration;
-use sde_sim_rs::proc::util::{num_incrementors, parse_equations};
-use sde_sim_rs::rng::{Rng, pseudo::PseudoRng, sobol::SobolRng};
+use sde_sim_rs::proc::util::parse_equations;
 use sde_sim_rs::sim::simulate;
 
 fn main() {
@@ -21,7 +20,7 @@ fn main() {
             .to_string(),
     ];
     let scheme = "runge-kutta"; // "euler" or "runge-kutta"
-    let rng_scheme = "sobol"; // "pseudo" or "sobol"
+    let rng_method = "sobol"; // "pseudo" or "sobol"
 
     // 1. Prepare Time Steps
     let time_steps: Vec<OrderedFloat<f64>> = (0..)
@@ -30,29 +29,21 @@ fn main() {
         .collect();
 
     // 2. Parse equations
-    let processes =
+    let universe =
         parse_equations(&equations, time_steps.clone()).expect("Failed to parse equations");
 
     // 3. Initialize Filtration
     let mut filtration = Filtration::new(
+        universe,
         time_steps.clone(),
         (1..=scenarios).collect(),
-        processes,
         Some(initial_values),
     );
 
-    // 4. Setup RNG
-    let mut rng: Box<dyn Rng> = if rng_scheme == "sobol" {
-        Box::new(SobolRng::new(num_incrementors(), time_steps.len()))
-    } else {
-        // PseudoRng now takes zero arguments
-        Box::new(PseudoRng::new(num_incrementors()))
-    };
-
     // Run Simulation
     let before = Instant::now();
-    println!("Starting simulation with {} RNG...", rng_scheme);
-    simulate(&mut filtration, &mut *rng, scheme);
+    println!("Starting simulation with {} RNG...", rng_method);
+    simulate(&mut filtration, scheme, rng_method);
 
     let duration = before.elapsed();
     println!(
