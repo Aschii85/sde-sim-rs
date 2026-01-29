@@ -1,28 +1,32 @@
-use crate::filtration::Filtration;
-use crate::rng::Rng;
+use crate::proc::LevyProcess;
+use crate::rng::BaseRng;
+use ordered_float::OrderedFloat;
 
 pub fn euler_iteration(
-    filtration: &mut Filtration,
-    scenario_idx: usize,
+    scenario_data: &mut [f64],
+    processes: &mut [Box<LevyProcess>],
+    times: &[OrderedFloat<f64>],
     time_idx: usize,
-    rng: &mut dyn Rng,
+    rng: &mut dyn BaseRng,
 ) {
-    let time = filtration.times[time_idx];
-    let num_processes = filtration.processes.len();
-    for process_idx in 0..num_processes {
-        let mut val = filtration.get(scenario_idx, time_idx, process_idx);
-        let num_incrementors = filtration.processes[process_idx].incrementors.len();
-        for inc_idx in 0..num_incrementors {
-            let c = (filtration.processes[process_idx].coefficients[inc_idx])(
-                filtration,
-                time,
-                time_idx,
-                scenario_idx,
-            );
-            let incrementor = &mut filtration.processes[process_idx].incrementors[inc_idx];
-            let x = incrementor.sample(time_idx, scenario_idx, rng);
+    let num_processes = processes.len();
+    let current_time = times[time_idx];
+    let offset = time_idx * num_processes;
+
+    let current_step_values = scenario_data[offset..offset + num_processes].to_vec();
+
+    for p_idx in 0..num_processes {
+        let current_val_idx = offset + p_idx;
+        let mut val = scenario_data[current_val_idx];
+
+        for inc_idx in 0..processes[p_idx].incrementors.len() {
+            // Pass the local copy to the coefficient function
+            let c = (processes[p_idx].coefficients[inc_idx])(&current_step_values, current_time);
+            let x = processes[p_idx].incrementors[inc_idx].sample(time_idx, rng);
             val += c * x;
         }
-        filtration.set(scenario_idx, time_idx + 1, process_idx, val);
+
+        let next_val_idx = (time_idx + 1) * num_processes + p_idx;
+        scenario_data[next_val_idx] = val;
     }
 }

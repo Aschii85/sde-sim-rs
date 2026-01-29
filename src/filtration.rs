@@ -1,26 +1,27 @@
-use crate::proc::LevyProcess;
+use crate::proc::util::ProcessesUniverse;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 
 pub struct Filtration {
+    pub processes_universe: ProcessesUniverse,
     pub scenarios: Vec<i32>,
     pub times: Vec<OrderedFloat<f64>>,
-    pub processes: Vec<Box<LevyProcess>>,
     raw_values: Vec<f64>,
 }
 
 impl Filtration {
     pub fn new(
+        processes_universe: ProcessesUniverse,
         times: Vec<OrderedFloat<f64>>,
         scenarios: Vec<i32>,
-        processes: Vec<Box<LevyProcess>>,
         initial_values: Option<HashMap<String, f64>>,
     ) -> Self {
-        let raw_values = vec![0.0; times.len() * scenarios.len() * processes.len()];
+        let raw_values =
+            vec![0.0; times.len() * scenarios.len() * processes_universe.processes.len()];
         let mut f = Filtration {
+            processes_universe,
             scenarios,
             times,
-            processes,
             raw_values,
         };
 
@@ -33,28 +34,28 @@ impl Filtration {
 
     #[inline]
     pub fn get(&self, scenario_idx: usize, time_idx: usize, process_idx: usize) -> f64 {
-        self.raw_values[scenario_idx * self.times.len() * self.processes.len()
-            + time_idx * self.processes.len()
+        self.raw_values[scenario_idx * self.times.len() * self.processes_universe.processes.len()
+            + time_idx * self.processes_universe.processes.len()
             + process_idx]
     }
 
-    #[inline]
-    pub fn get_processes_slice(&self, scenario_idx: usize, time_idx: usize) -> &[f64] {
-        let start = (scenario_idx * self.times.len() * self.processes.len())
-            + (time_idx * self.processes.len());
-        let end = start + self.processes.len();
-        &self.raw_values[start..end]
+    pub fn scenario_partitions(&mut self) -> std::slice::ChunksExactMut<'_, f64> {
+        let scenario_size = self.times.len() * self.processes_universe.processes.len();
+        self.raw_values.chunks_exact_mut(scenario_size)
     }
 
     #[inline]
     pub fn set(&mut self, scenario_idx: usize, time_idx: usize, process_idx: usize, val: f64) {
-        self.raw_values[scenario_idx * self.times.len() * self.processes.len()
-            + time_idx * self.processes.len()
+        self.raw_values[scenario_idx
+            * self.times.len()
+            * self.processes_universe.processes.len()
+            + time_idx * self.processes_universe.processes.len()
             + process_idx] = val;
     }
 
     pub fn set_initial_values(&mut self, values: HashMap<String, f64>) {
         let initial_vals: Vec<f64> = self
+            .processes_universe
             .processes
             .iter()
             .map(|p| values.get(&p.name).copied().unwrap_or(0.0))
@@ -67,13 +68,14 @@ impl Filtration {
     }
 
     pub fn to_dataframe(&self) -> polars::prelude::DataFrame {
-        let row_count = self.times.len() * self.scenarios.len() * self.processes.len();
+        let row_count =
+            self.times.len() * self.scenarios.len() * self.processes_universe.processes.len();
         let mut times = Vec::with_capacity(row_count);
         let mut scenarios = Vec::with_capacity(row_count);
         let mut process_names = Vec::with_capacity(row_count);
         for &scenario in self.scenarios.iter() {
             for time in self.times.iter() {
-                for process in self.processes.iter() {
+                for process in self.processes_universe.processes.iter() {
                     times.push(time.0);
                     scenarios.push(scenario);
                     process_names.push(process.name.clone());
