@@ -1,41 +1,5 @@
 use crate::filtration::Filtration;
 use crate::rng::Rng;
-use ordered_float::OrderedFloat;
-
-pub fn simulate(filtration: &mut Filtration, rng: &mut dyn Rng, scheme: &str) {
-    let num_scenarios = filtration.scenarios.len();
-    let num_time_deltas = filtration.times.len() - 1;
-
-    let mut rk_scratchpad = if scheme == "runge-kutta" {
-        Some(Filtration::new(
-            vec![OrderedFloat(0.0)],
-            vec![0],
-            filtration.processes.iter().cloned().collect(),
-            None,
-        ))
-    } else {
-        None
-    };
-    for scenario_idx in 0..num_scenarios {
-        for time_idx in 0..num_time_deltas {
-            match scheme {
-                "euler" => {
-                    euler_iteration(filtration, scenario_idx, time_idx, rng);
-                }
-                "runge-kutta" => {
-                    runge_kutta_iteration(
-                        filtration,
-                        scenario_idx,
-                        time_idx,
-                        rng,
-                        rk_scratchpad.as_mut().unwrap(),
-                    );
-                }
-                _ => panic!("Unknown scheme"),
-            }
-        }
-    }
-}
 
 pub fn runge_kutta_iteration(
     filtration: &mut Filtration,
@@ -78,7 +42,7 @@ pub fn runge_kutta_iteration(
         k1[process_idx] = step_k1;
     }
 
-    // Stage 2: Evaluation (Uses scratchpad as &)
+    // Stage 2
     for process_idx in 0..num_processes {
         let mut step_k2 = 0.0;
         let num_incrementors = filtration.processes[process_idx].incrementors.len();
@@ -98,32 +62,6 @@ pub fn runge_kutta_iteration(
     for process_idx in 0..num_processes {
         let val = filtration.get(scenario_idx, time_idx, process_idx)
             + 0.5 * (k1[process_idx] + k2[process_idx]);
-        filtration.set(scenario_idx, time_idx + 1, process_idx, val);
-    }
-}
-
-pub fn euler_iteration(
-    filtration: &mut Filtration,
-    scenario_idx: usize,
-    time_idx: usize,
-    rng: &mut dyn Rng,
-) {
-    let time = filtration.times[time_idx];
-    let num_processes = filtration.processes.len();
-    for process_idx in 0..num_processes {
-        let mut val = 0.0;
-        let num_incrementors = filtration.processes[process_idx].incrementors.len();
-        for inc_idx in 0..num_incrementors {
-            let c = (filtration.processes[process_idx].coefficients[inc_idx])(
-                filtration,
-                time,
-                time_idx,
-                scenario_idx,
-            );
-            let incrementor = &mut filtration.processes[process_idx].incrementors[inc_idx];
-            let x = incrementor.sample(time_idx, scenario_idx, rng);
-            val += c * x;
-        }
         filtration.set(scenario_idx, time_idx + 1, process_idx, val);
     }
 }

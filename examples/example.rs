@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use sde_sim_rs::filtration::Filtration;
-use sde_sim_rs::process::util::{num_incrementors, parse_equations};
-use sde_sim_rs::rng::{PseudoRng, Rng, SobolRng};
+use sde_sim_rs::proc::util::{num_incrementors, parse_equations};
+use sde_sim_rs::rng::{Rng, pseudo::PseudoRng, sobol::SobolRng};
 use sde_sim_rs::sim::simulate;
 
 fn main() {

@@ -1,4 +1,4 @@
-use crate::process::{CoefficientFn, LevyProcess, increment::*};
+use crate::proc::{CoefficientFn, LevyProcess, increment::*};
 use fasteval::{Compiler, Evaler, Instruction, Slab};
 use ordered_float::OrderedFloat;
 use regex::Regex;
@@ -17,9 +17,6 @@ struct CompiledCoefficient {
     bound_vars: Vec<(String, ResolvedVar)>,
 }
 
-// Global mutable vector wrapped in a Mutex
-static _INCREMENTORS: Mutex<Vec<String>> = Mutex::new(Vec::new());
-
 impl CompiledCoefficient {
     fn eval(&self, current_values: &[f64], t: f64) -> f64 {
         let mut cb = |name: &str, _args: Vec<f64>| -> Option<f64> {
@@ -37,6 +34,42 @@ impl CompiledCoefficient {
     }
 }
 
+/// Parses a set of Stochastic Differential Equation (SDE) strings into a collection of `LevyProcess` objects.
+///
+/// Each equation must follow the format: `d[Name] = ( [Coefficient] ) * d[Incrementor] + ...`
+///
+/// ### Mathematical Syntax
+/// The content inside the parentheses is parsed using `fasteval`. You can use the following:
+///
+/// * **Variables**:
+///     * `t`: The current simulation time.
+///     * `ProcessName`: Any process defined in the input set (e.g., `X1`, `S`, `Volatility`).
+/// * **Operators**: `+`, `-`, `*`, `/`, `^` (power), `%` (modulo).
+/// * **Logic**: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`.
+/// * **Functions**:
+///     * *Exponential*: `exp(x)`, `log(x)`, `log10(x)`, `log2(x)`
+///     * *Trig*: `sin(x)`, `cos(x)`, `tan(x)`, `asin(x)`, `acos(x)`, `atan(x)`
+///     * *Hyperbolic*: `sinh(x)`, `cosh(x)`, `tanh(x)`
+///     * *Rounding*: `ceil(x)`, `floor(x)`, `round(x)`, `trunc(x)`
+///     * *General*: `abs(x)`, `sqrt(x)`, `cbrt(x)`, `max(x, y)`, `min(x, y)`
+///
+/// ### Supported Incrementors
+/// * `dt`: Deterministic time step.
+/// * `dW`: Wiener process (Brownian Motion).
+/// * `dJ(lambda)`: Poisson Jump process with intensity `lambda`.
+///
+/// ### Example
+/// ```rust
+/// let eq = vec![
+///     "dX = ( 0.05 * X ) * dt + ( 0.2 * X ) * dW1".to_string(),
+///     "dY = ( 0.1 * (X - Y) ) * dt + ( 0.5 ) * dJ1(0.01)".to_string()
+/// ];
+/// let processes = parse_equations(&eq, timesteps)?;
+/// ```
+///
+/// ### Errors
+/// Returns an error if an equation is malformed, uses an unknown process name,
+/// or contains invalid mathematical syntax.
 pub fn parse_equations(
     equations: &[String],
     timesteps: Vec<OrderedFloat<f64>>,
@@ -60,7 +93,21 @@ pub fn parse_equations(
     Ok(processes)
 }
 
-pub fn parse_equation(
+/// Returns the total number of unique stochastic incrementors identified across all parsed equations.
+///
+/// ### Important Usage Note
+/// This function **must be called after** `parse_equations`. It relies on a global registry
+/// that is populated lazily as the parser encounters new incrementor labels (e.g., `dW1`, `dJ2`).
+/// Calling this before parsing will return `0`.
+///
+/// This count is typically used to initialize the Random Number Generator (RNG) with the
+/// correct number of dimensions.
+pub fn num_incrementors() -> usize {
+    let list = _INCREMENTORS.lock().unwrap();
+    list.len()
+}
+
+fn parse_equation(
     equation: &str,
     all_process_names: &[String],
     timesteps: Vec<OrderedFloat<f64>>,
@@ -123,6 +170,9 @@ pub fn parse_equation(
     )?))
 }
 
+// Global mutable vector wrapped in a Mutex
+static _INCREMENTORS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
 fn parse_incrementor(
     inc_str: &str,
     timesteps: Vec<OrderedFloat<f64>>,
@@ -160,9 +210,4 @@ fn parse_incrementor(
     } else {
         Err(format!("Unknown incrementor: {}", inc_str))
     }
-}
-
-pub fn num_incrementors() -> usize {
-    let list = _INCREMENTORS.lock().unwrap();
-    list.len()
 }

@@ -1,8 +1,6 @@
 use crate::rng::Rng;
 use ordered_float::OrderedFloat;
 
-// TODO: In this and rng use uint for scenario, incrementor and time indices for performance?
-
 pub trait Incrementor: Send + Sync {
     fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64;
     fn clone_box(&self) -> Box<dyn Incrementor>;

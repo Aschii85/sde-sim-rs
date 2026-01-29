@@ -9,7 +9,7 @@ print(dir(sde_sim_rs))
 def main():
     df: pl.DataFrame = sde_sim_rs.simulate(
         processes_equations=[
-            "dX1 = ( 0.1 ) * dt",
+            "dX1 = ( sin(t) ) * dt",
             "dX2 = (0.01 * X1) * dW1",
             "dX3 = (0.005 * X3) * dt + (0.01 * X3) * dW2 + (0.1 * X2 * X3) * dJ1(0.01)",
             # "dX3 = ( 0.001 * X3 ) * dt + ( 0.01 * X2 * X3 ) * dW2",

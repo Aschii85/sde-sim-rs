@@ -1,8 +1,7 @@
+use crate::proc::LevyProcess;
 use fxhash::FxHashMap;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
-
-use crate::process::LevyProcess;
 
 pub struct Filtration {
     pub scenarios: Vec<i32>,

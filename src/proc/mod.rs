@@ -2,7 +2,6 @@ pub mod increment;
 pub mod util;
 
 use crate::filtration::Filtration;
-use crate::process::increment::Incrementor;
 use ordered_float::OrderedFloat;
 use std::sync::Arc;
 
@@ -12,7 +11,7 @@ pub type CoefficientFn = dyn Fn(&Filtration, OrderedFloat<f64>, usize, usize) ->
 pub struct LevyProcess {
     pub name: String,
     pub coefficients: Vec<Arc<CoefficientFn>>,
-    pub incrementors: Vec<Box<dyn Incrementor>>,
+    pub incrementors: Vec<Box<dyn increment::Incrementor>>,
 }
 
 impl Clone for LevyProcess {
@@ -31,7 +30,7 @@ impl LevyProcess {
     pub fn new(
         name: String,
         coefficients: Vec<Arc<CoefficientFn>>,
-        incrementors: Vec<Box<dyn Incrementor>>,
+        incrementors: Vec<Box<dyn increment::Incrementor>>,
     ) -> Result<Self, String> {
         if coefficients.len() != incrementors.len() {
             return Err("Number of coefficients must match incrementors".into());

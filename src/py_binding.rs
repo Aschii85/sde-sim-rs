@@ -1,12 +1,11 @@
+use crate::filtration::Filtration;
+use crate::rng::{Rng, pseudo::PseudoRng, sobol::SobolRng};
+use crate::sim::simulate;
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use pyo3::prelude::*;
 use pyo3_polars::PyDataFrame;
 use std::collections::HashMap;
-
-use crate::filtration::Filtration;
-use crate::rng::{PseudoRng, Rng, SobolRng};
-use crate::sim::simulate;
 
 #[pyfunction]
 #[pyo3(name = "simulate")]
@@ -22,7 +21,7 @@ pub fn simulate_py(
         time_steps.iter().copied().map(OrderedFloat).collect();
 
     let processes =
-        crate::process::util::parse_equations(&processes_equations, time_steps_ordered.clone())
+        crate::proc::util::parse_equations(&processes_equations, time_steps_ordered.clone())
             .map_err(|e| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                     "Failed to parse process equations: {}",
@@ -37,7 +36,7 @@ pub fn simulate_py(
         Some(initial_values),
     );
 
-    let num_incrementors = crate::process::util::num_incrementors();
+    let num_incrementors = crate::proc::util::num_incrementors();
     let mut rng: Box<dyn Rng> = if rng_method == "sobol" {
         Box::new(SobolRng::new(num_incrementors, time_steps_ordered.len()))
     } else {
