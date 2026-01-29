@@ -1,5 +1,4 @@
 use crate::proc::LevyProcess;
-use fxhash::FxHashMap;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 
@@ -26,7 +25,7 @@ impl Filtration {
         };
 
         if let Some(values) = initial_values {
-            let fx_values: FxHashMap<String, f64> = values.into_iter().collect();
+            let fx_values: HashMap<String, f64> = values.into_iter().collect();
             f.set_initial_values(fx_values);
         }
         f
@@ -54,7 +53,7 @@ impl Filtration {
             + process_idx] = val;
     }
 
-    pub fn set_initial_values(&mut self, values: FxHashMap<String, f64>) {
+    pub fn set_initial_values(&mut self, values: HashMap<String, f64>) {
         let initial_vals: Vec<f64> = self
             .processes
             .iter()
