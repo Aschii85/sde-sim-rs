@@ -12,13 +12,12 @@ def main():
             "dX1 = ( sin(t) ) * dt",
             "dX2 = (0.01 * X1) * dW1",
             "dX3 = (0.005 * X3) * dt + (0.01 * X3) * dW2 + (0.1 * X2 * X3) * dJ1(0.01)",
-            # "dX3 = ( 0.001 * X3 ) * dt + ( 0.01 * X2 * X3 ) * dW2",
         ],
         time_steps=list(np.arange(0.0, 100.0, 0.1)),
         scenarios=1000,
         initial_values={"X1": 0.0, "X2": 1.0, "X3": 100.0},
         rng_method="pseudo",
-        scheme="runge-kutta",
+        scheme="euler",
     )
     print(df)
     for i in range(1, 4):

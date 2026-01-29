@@ -10,7 +10,7 @@ pub fn euler_iteration(
     let time = filtration.times[time_idx];
     let num_processes = filtration.processes.len();
     for process_idx in 0..num_processes {
-        let mut val = 0.0;
+        let mut val = filtration.get(scenario_idx, time_idx, process_idx);
         let num_incrementors = filtration.processes[process_idx].incrementors.len();
         for inc_idx in 0..num_incrementors {
             let c = (filtration.processes[process_idx].coefficients[inc_idx])(
