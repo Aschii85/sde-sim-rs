@@ -1,83 +1,78 @@
-use crate::rng::{Rng, StepCache};
+use crate::rng::BaseRng;
 use rand::{Rng as RandRng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-use sobol;
+use sobol::params::JoeKuoD6;
+use std::sync::{Arc, Mutex, OnceLock};
 
-// --- Sobol RNG ---
+static SOBOL_PARAMS: OnceLock<JoeKuoD6> = OnceLock::new();
 
+/// The internal "Engine" that is shared across all scenarios.
+pub struct SobolEngine {
+    sobol_iter: Box<dyn Iterator<Item = Vec<f64>> + Send>,
+}
+
+impl SobolEngine {
+    pub fn new(dims: usize) -> Self {
+        let params = SOBOL_PARAMS.get_or_init(JoeKuoD6::extended);
+        let sobol_iter = sobol::Sobol::<f64>::new(dims, params).skip(5);
+        Self {
+            sobol_iter: Box::new(sobol_iter),
+        }
+    }
+
+    pub fn next_path(&mut self) -> Option<Vec<f64>> {
+        self.sobol_iter.next()
+    }
+}
+
+/// The lightweight RNG wrapper created per scenario.
 pub struct SobolRng {
-    last_step: Option<StepCache>,
     num_increments: usize,
-    sobol_iter: Box<std::iter::Skip<sobol::Sobol<f64>>>,
-    scrambler: XORScrambler,
+    values: Vec<f64>,
 }
 
 impl SobolRng {
-    pub fn new(num_increments: usize, num_timesteps: usize) -> Self {
+    pub fn new(
+        seed: u64,
+        engine: Arc<Mutex<SobolEngine>>,
+        num_increments: usize,
+        num_timesteps: usize,
+    ) -> Self {
+        let raw = {
+            let mut lock = engine.lock().unwrap();
+            lock.next_path().expect("Sobol sequence exhausted")
+        };
         let dims = (num_timesteps - 1) * num_increments;
-        let params = sobol::params::JoeKuoD6::extended();
-        let sobol_iter = sobol::Sobol::<f64>::new(dims, &params);
+        let scrambler = RandomShiftScrambler::new(dims, seed);
+        let scrambled = scrambler.scramble(raw);
 
         Self {
-            last_step: None,
             num_increments,
-            sobol_iter: Box::new(sobol_iter.skip(5)),
-            scrambler: XORScrambler::new(),
-        }
-    }
-
-    fn refresh_cache(&mut self, scenario_idx: usize) {
-        // If scenario changed, grab next Sobol vector for the entire path
-        if let Some(raw) = self.sobol_iter.next() {
-            let current_scrambled_path = self.scrambler.scramble(raw);
-            self.last_step = Some(StepCache {
-                time_idx: None,
-                scenario_idx,
-                values: current_scrambled_path,
-            });
+            values: scrambled,
         }
     }
 }
 
-impl Rng for SobolRng {
-    fn sample(&mut self, time_idx: usize, scenario_idx: usize, increment_idx: usize) -> f64 {
-        let is_cached = self
-            .last_step
-            .as_ref()
-            .is_some_and(|c| c.scenario_idx == scenario_idx);
-
-        if !is_cached {
-            self.refresh_cache(scenario_idx);
-        }
-
-        self.last_step
-            .as_ref()
-            .unwrap()
-            .values
-            .get(time_idx * self.num_increments + increment_idx)
-            .copied()
-            .unwrap_or(0.0)
+impl BaseRng for SobolRng {
+    fn sample(&mut self, time_idx: usize, increment_idx: usize) -> f64 {
+        self.values[time_idx * self.num_increments + increment_idx]
     }
 }
 
-// --- Scrambler ---
-
-struct XORScrambler {
-    rng: ChaCha8Rng,
+struct RandomShiftScrambler {
+    shift: Vec<f64>,
 }
 
-impl XORScrambler {
-    fn new() -> Self {
-        Self {
-            rng: ChaCha8Rng::from_os_rng(),
-        }
+impl RandomShiftScrambler {
+    fn new(dims: usize, seed: u64) -> Self {
+        let mut rng = ChaCha8Rng::seed_from_u64(seed);
+        let shift = (0..dims).map(|_| rng.random::<f64>()).collect();
+        Self { shift }
     }
 
-    fn scramble(&mut self, mut values: Vec<f64>) -> Vec<f64> {
-        const MANTISSA_MASK: u64 = 0x000F_FFFF_FFFF_FFFF;
-        for val in values.iter_mut() {
-            let offset = self.rng.random::<u64>() & MANTISSA_MASK;
-            *val = f64::from_bits(val.to_bits() ^ offset);
+    fn scramble(&self, mut values: Vec<f64>) -> Vec<f64> {
+        for (val, &s) in values.iter_mut().zip(self.shift.iter()) {
+            *val = (*val + s).fract();
         }
         values
     }

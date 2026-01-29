@@ -1,8 +1,8 @@
-use crate::rng::Rng;
+use crate::rng::BaseRng;
 use ordered_float::OrderedFloat;
 
-pub trait Incrementor: Send + Sync {
-    fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64;
+pub trait Incrementor: Send + Sync + std::fmt::Debug {
+    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng) -> f64;
     fn clone_box(&self) -> Box<dyn Incrementor>;
 }
 
@@ -12,15 +12,7 @@ impl Clone for Box<dyn Incrementor> {
     }
 }
 
-/// Simple register to cache the very last calculated value.
-#[derive(Clone)]
-struct LastValue {
-    time_idx: usize,
-    scenario_idx: usize,
-    value: f64,
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TimeIncrementor {
     dts: Vec<f64>,
 }
@@ -37,7 +29,7 @@ impl TimeIncrementor {
 
 impl Incrementor for TimeIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, _scenario_idx: usize, _rng: &mut dyn Rng) -> f64 {
+    fn sample(&mut self, time_idx: usize, _rng: &mut dyn BaseRng) -> f64 {
         self.dts[time_idx]
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
@@ -45,9 +37,8 @@ impl Incrementor for TimeIncrementor {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WienerIncrementor {
-    last: Option<LastValue>,
     idx: usize,
     sqrt_dts: Vec<f64>,
 }
@@ -59,41 +50,28 @@ impl WienerIncrementor {
             .map(|w| (w[1] - w[0]).into_inner())
             .map(|dt| dt.sqrt())
             .collect();
-        Self {
-            last: None,
-            idx,
-            sqrt_dts,
-        }
+        Self { idx, sqrt_dts }
     }
 }
 
 impl Incrementor for WienerIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64 {
-        if let Some(ref last) = self.last
-            && last.scenario_idx == scenario_idx
-            && last.time_idx == time_idx
-        {
-            return last.value;
-        }
-        let q = rng.sample(time_idx, scenario_idx, self.idx);
+    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng) -> f64 {
+        let q = rng.sample(time_idx, self.idx);
         let increment = self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q);
-        self.last = Some(LastValue {
-            time_idx,
-            scenario_idx,
-            value: increment,
-        });
         increment
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
-        Box::new(self.clone())
+        Box::new(Self {
+            idx: self.idx,
+            sqrt_dts: self.sqrt_dts.clone(),
+        })
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct JumpIncrementor {
     lambda: f64,
-    last: Option<LastValue>,
     idx: usize,
     dts: Vec<f64>,
 }
@@ -104,36 +82,24 @@ impl JumpIncrementor {
             .windows(2)
             .map(|w| (w[1] - w[0]).into_inner())
             .collect();
-        Self {
-            lambda,
-            last: None,
-            idx,
-            dts,
-        }
+        Self { lambda, idx, dts }
     }
 }
 
 impl Incrementor for JumpIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64 {
-        if let Some(ref last) = self.last
-            && last.scenario_idx == scenario_idx
-            && last.time_idx == time_idx
-        {
-            return last.value;
-        }
-        let u = rng.sample(time_idx, scenario_idx, self.idx);
+    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng) -> f64 {
+        let u = rng.sample(time_idx, self.idx);
         let effective_lambda = self.lambda * self.dts[time_idx];
         let num_jumps = fast_inverse_poisson_cdf(u, effective_lambda) as f64;
-        self.last = Some(LastValue {
-            time_idx,
-            scenario_idx,
-            value: num_jumps,
-        });
         num_jumps
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
-        Box::new(self.clone())
+        Box::new(Self {
+            lambda: self.lambda,
+            idx: self.idx,
+            dts: self.dts.clone(),
+        })
     }
 }
 

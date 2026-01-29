@@ -1,12 +1,10 @@
 pub mod increment;
 pub mod util;
 
-use crate::filtration::Filtration;
 use ordered_float::OrderedFloat;
 use std::sync::Arc;
 
-// Updated: Now takes the slice of values for O(1) math evaluation
-pub type CoefficientFn = dyn Fn(&Filtration, OrderedFloat<f64>, usize, usize) -> f64 + Send + Sync;
+pub type CoefficientFn = dyn Fn(&[f64], OrderedFloat<f64>) -> f64 + Send + Sync;
 
 pub struct LevyProcess {
     pub name: String,
@@ -18,9 +16,7 @@ impl Clone for LevyProcess {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
-            // Arc cloning is cheap (ref-count increment)
             coefficients: self.coefficients.clone(),
-            // Box cloning uses our custom clone_box helper
             incrementors: self.incrementors.iter().map(|i| i.clone_box()).collect(),
         }
     }

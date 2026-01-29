@@ -1,5 +1,4 @@
 use crate::filtration::Filtration;
-use crate::rng::{Rng, pseudo::PseudoRng, sobol::SobolRng};
 use crate::sim::simulate;
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
@@ -10,6 +9,7 @@ use std::collections::HashMap;
 #[pyfunction]
 #[pyo3(name = "simulate")]
 pub fn simulate_py(
+    py: Python<'_>, // Added this to handle GIL release
     processes_equations: Vec<String>,
     time_steps: Vec<f64>,
     scenarios: i32,
@@ -20,6 +20,7 @@ pub fn simulate_py(
     let time_steps_ordered: Vec<OrderedFloat<f64>> =
         time_steps.iter().copied().map(OrderedFloat).collect();
 
+    // 1. Heavy parsing done while holding the GIL (purely CPU bound, usually fast)
     let processes =
         crate::proc::util::parse_equations(&processes_equations, time_steps_ordered.clone())
             .map_err(|e| {
@@ -30,21 +31,18 @@ pub fn simulate_py(
             })?;
 
     let mut filtration = Filtration::new(
+        processes,
         time_steps_ordered.clone(),
         (1..=scenarios).collect(),
-        processes,
         Some(initial_values),
     );
 
-    let num_incrementors = crate::proc::util::num_incrementors();
-    let mut rng: Box<dyn Rng> = if rng_method == "sobol" {
-        Box::new(SobolRng::new(num_incrementors, time_steps_ordered.len()))
-    } else {
-        Box::new(PseudoRng::new(num_incrementors))
-    };
+    // 2. Release the GIL so Rayon can scale across all cores
+    py.allow_threads(|| {
+        simulate(&mut filtration, &scheme, &rng_method);
+    });
 
-    simulate(&mut filtration, &mut *rng, &scheme);
-
+    // 3. Convert back to Polars (happens after threads join)
     let df: DataFrame = filtration.to_dataframe();
     Ok(PyDataFrame(df))
 }
