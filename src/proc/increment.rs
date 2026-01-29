@@ -58,8 +58,7 @@ impl Incrementor for WienerIncrementor {
     #[inline]
     fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng) -> f64 {
         let q = rng.sample(time_idx, self.idx);
-        let increment = self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q);
-        increment
+        self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q)
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
         Box::new(Self {
@@ -91,8 +90,7 @@ impl Incrementor for JumpIncrementor {
     fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng) -> f64 {
         let u = rng.sample(time_idx, self.idx);
         let effective_lambda = self.lambda * self.dts[time_idx];
-        let num_jumps = fast_inverse_poisson_cdf(u, effective_lambda) as f64;
-        num_jumps
+        fast_inverse_poisson_cdf(u, effective_lambda) as f64
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
         Box::new(Self {

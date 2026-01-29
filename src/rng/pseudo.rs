@@ -50,9 +50,11 @@ impl BaseRng for PseudoRng {
             .unwrap()
             .values
             .get(increment_idx)
-            .expect(&format!(
-                "RNG Index {} out of bounds (max {})",
-                increment_idx, self.num_increments
-            ))
+            .unwrap_or_else(|| {
+                panic!(
+                    "RNG Index {} out of bounds (max {})",
+                    increment_idx, self.num_increments
+                )
+            })
     }
 }

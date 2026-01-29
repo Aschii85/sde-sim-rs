@@ -31,13 +31,10 @@ pub fn simulate(filtration: &mut Filtration, scheme: &str, rng_method: &str) {
     filtration
         .scenario_partitions()
         .enumerate()
-        .collect::<Vec<_>>() // Optional: helps Rayon with indexing performance
-        .into_par_iter() // Converts std iterator to Rayon's parallel iterator
+        .collect::<Vec<_>>()
+        .into_par_iter()
         .for_each(|(s_idx, scenario_slice)| {
-            let mut local_processes: Vec<Box<LevyProcess>> = processes
-                .iter()
-                .map(|p| p.clone()) // Ensure LevyProcess implements Clone
-                .collect();
+            let mut local_processes: Vec<Box<LevyProcess>> = processes.to_vec();
             let mut local_rng: Box<dyn BaseRng> = match rng_method {
                 "sobol" => Box::new(SobolRng::new(
                     s_idx as u64 + random_seed,
