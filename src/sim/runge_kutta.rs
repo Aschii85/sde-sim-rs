@@ -19,6 +19,7 @@ pub fn runge_kutta_iteration(
     let k2 = &mut vec![0.0; num_processes];
 
     // Stage 1
+    #[allow(clippy::needless_range_loop)]
     for process_idx in 0..num_processes {
         let mut step_k1 = 0.0;
         let num_incrementors = filtration.processes[process_idx].incrementors.len();
@@ -43,6 +44,7 @@ pub fn runge_kutta_iteration(
     }
 
     // Stage 2
+    #[allow(clippy::needless_range_loop)]
     for process_idx in 0..num_processes {
         let mut step_k2 = 0.0;
         let num_incrementors = filtration.processes[process_idx].incrementors.len();

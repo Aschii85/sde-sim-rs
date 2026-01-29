@@ -58,15 +58,6 @@ impl CompiledCoefficient {
 /// * `dW`: Wiener process (Brownian Motion).
 /// * `dJ(lambda)`: Poisson Jump process with intensity `lambda`.
 ///
-/// ### Example
-/// ```rust
-/// let eq = vec![
-///     "dX = ( 0.05 * X ) * dt + ( 0.2 * X ) * dW1".to_string(),
-///     "dY = ( 0.1 * (X - Y) ) * dt + ( 0.5 ) * dJ1(0.01)".to_string()
-/// ];
-/// let processes = parse_equations(&eq, timesteps)?;
-/// ```
-///
 /// ### Errors
 /// Returns an error if an equation is malformed, uses an unknown process name,
 /// or contains invalid mathematical syntax.

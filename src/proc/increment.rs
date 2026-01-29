@@ -70,10 +70,11 @@ impl WienerIncrementor {
 impl Incrementor for WienerIncrementor {
     #[inline]
     fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64 {
-        if let Some(ref last) = self.last {
-            if last.scenario_idx == scenario_idx && last.time_idx == time_idx {
-                return last.value;
-            }
+        if let Some(ref last) = self.last
+            && last.scenario_idx == scenario_idx
+            && last.time_idx == time_idx
+        {
+            return last.value;
         }
         let q = rng.sample(time_idx, scenario_idx, self.idx);
         let increment = self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q);
@@ -115,10 +116,11 @@ impl JumpIncrementor {
 impl Incrementor for JumpIncrementor {
     #[inline]
     fn sample(&mut self, time_idx: usize, scenario_idx: usize, rng: &mut dyn Rng) -> f64 {
-        if let Some(ref last) = self.last {
-            if last.scenario_idx == scenario_idx && last.time_idx == time_idx {
-                return last.value;
-            }
+        if let Some(ref last) = self.last
+            && last.scenario_idx == scenario_idx
+            && last.time_idx == time_idx
+        {
+            return last.value;
         }
         let u = rng.sample(time_idx, scenario_idx, self.idx);
         let effective_lambda = self.lambda * self.dts[time_idx];

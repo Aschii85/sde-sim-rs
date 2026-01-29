@@ -44,7 +44,7 @@ impl Rng for SobolRng {
         let is_cached = self
             .last_step
             .as_ref()
-            .map_or(false, |c| c.scenario_idx == scenario_idx);
+            .is_some_and(|c| c.scenario_idx == scenario_idx);
 
         if !is_cached {
             self.refresh_cache(scenario_idx);

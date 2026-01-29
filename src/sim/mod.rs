@@ -13,7 +13,7 @@ pub fn simulate(filtration: &mut Filtration, rng: &mut dyn Rng, scheme: &str) {
         Some(Filtration::new(
             vec![OrderedFloat(0.0)],
             vec![0],
-            filtration.processes.iter().cloned().collect(),
+            filtration.processes.to_vec(),
             None,
         ))
     } else {

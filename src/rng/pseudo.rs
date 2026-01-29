@@ -34,9 +34,10 @@ impl PseudoRng {
 
 impl Rng for PseudoRng {
     fn sample(&mut self, time_idx: usize, scenario_idx: usize, increment_idx: usize) -> f64 {
-        let is_cached = self.last_step.as_ref().map_or(false, |c| {
-            c.scenario_idx == scenario_idx && c.time_idx == Some(time_idx)
-        });
+        let is_cached = self
+            .last_step
+            .as_ref()
+            .is_some_and(|c| c.scenario_idx == scenario_idx && c.time_idx == Some(time_idx));
 
         if !is_cached {
             self.refresh_cache(time_idx, scenario_idx);
