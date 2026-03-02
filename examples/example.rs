@@ -1,8 +1,6 @@
 use ordered_float::OrderedFloat;
-use polars::prelude::*;
 use std::collections::HashMap;
 use std::time::Instant;
-
 use sde_sim_rs::proc::util::parse_equations;
 use sde_sim_rs::sim::simulate;
 
@@ -43,7 +41,7 @@ fn main() {
     // run the actual simulation; this mirrors the body of `simulate_py`
     let start = Instant::now();
     println!("running {} scenarios with {} rng...", scenarios, rng_method);
-    let df: DataFrame = simulate(
+    let lf = simulate(
         &mut universe,
         ordered_steps.clone(),
         initial_values.clone(),
@@ -51,9 +49,8 @@ fn main() {
         scheme,
         rng_method,
     )
-    .collect()
-    .expect("failed to collect results");
-
+    .expect("failed to run simulation");
+    let df = lf.collect().expect("failed to collect results");
     let elapsed = start.elapsed();
     println!("completed in {:.3}s", elapsed.as_secs_f64());
 

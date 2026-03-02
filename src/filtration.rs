@@ -2,6 +2,7 @@ use crate::proc::ProcessUniverse;
 use ordered_float::OrderedFloat;
 use std::{collections::HashMap};
 use std::collections::BTreeMap;
+use polars::prelude::*;
 
 pub struct ScenarioFiltrationCache {
     pub time: OrderedFloat<f64>,
@@ -71,28 +72,40 @@ impl ScenarioFiltration {
         }
     } 
 
-    pub fn to_dataframe(&self) -> polars::prelude::DataFrame {
+    pub fn to_lazyframe(&self) -> LazyFrame {
         let num_procs = self.process_universe.processes.len();
-        let row_count = self.times.len() * num_procs;
+        let num_times = self.times.len();
 
-        let mut scenarios = Vec::with_capacity(row_count);
-        let mut times = Vec::with_capacity(row_count);
-        let mut process_names = Vec::with_capacity(row_count);
+        // 1. Fixed PlSmallStr by adding .into() 
+        // and using StringChunked::from_iter for cleaner collection
+        let process_names: Series = StringChunked::from_iter(
+            self.times.iter().flat_map(|_| {
+                self.process_universe.processes.iter().map(|p| p.name())
+            })
+        )
+        .with_name("process_name".into())
+        .into_series();
 
-        for time in self.times.iter() {
-            for process in self.process_universe.processes.iter() {
-                scenarios.push(self.scenario);
-                times.push(time.0);
-                process_names.push(process.name().to_string());
-            }
-        }
+        // 2. Fixed Float64Chunked collection
+        // We use Float64Chunked::from_iter and .into() for the name
+        let times: Series = Float64Chunked::from_iter(
+            self.times.iter().flat_map(|t| {
+                std::iter::repeat(Some(t.0)).take(num_procs)
+            })
+        )
+        .with_name("time".into())
+        .into_series();
 
-        polars::prelude::df![
-            "scenario" => scenarios,
+        // 3. Build the DataFrame
+        // Note: The df! macro in 0.51 also expects PlSmallStr for column names
+        // but the macro usually handles string literals via internal conversion.
+        df![
+            "scenario" => [self.scenario].repeat(num_procs * num_times),
             "time" => times,
             "process_name" => process_names,
             "value" => &self.raw_values
         ]
-        .expect("DF error")
+        .expect("Failed to create DataFrame")
+        .lazy()
     }
 }

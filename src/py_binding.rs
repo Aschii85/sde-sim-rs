@@ -1,14 +1,14 @@
 use crate::sim::simulate;
 use ordered_float::OrderedFloat;
-use polars::prelude::*;
 use pyo3::prelude::*;
+use pyo3::exceptions::{PyValueError, PyRuntimeError};
 use pyo3_polars::PyDataFrame;
 use std::collections::HashMap;
 
 #[pyfunction]
 #[pyo3(name = "simulate")]
 pub fn simulate_py(
-    py: Python<'_>, // Added this to handle GIL release
+    py: Python<'_>,
     processes_equations: Vec<String>,
     time_steps: Vec<f64>,
     scenarios: i32,
@@ -16,36 +16,40 @@ pub fn simulate_py(
     rng_method: String,
     scheme: String,
 ) -> PyResult<PyDataFrame> {
+    // Basic validation for scenario count
+    if scenarios <= 0 {
+        return Err(PyValueError::new_err("scenarios must be a positive integer"));
+    }
+
     let time_steps_ordered: Vec<OrderedFloat<f64>> =
         time_steps.iter().copied().map(OrderedFloat).collect();
 
-    // 1. Heavy parsing done while holding the GIL (purely CPU bound, usually fast)
+    // 1. Parse equations and map internal errors to Python ValueErrors
     let mut processes = crate::proc::util::parse_equations(
         &processes_equations,
         time_steps_ordered.clone(),
     )
-    .map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-            "Failed to parse process equations: {}",
-            e
-        ))
-    })?;
+    .map_err(|e| PyValueError::new_err(format!("Failed to parse equations: {}", e)))?;
 
-    // build the universe and hand off to the shared simulation routine
-    // (the simulator takes ownership of the process universe and time vector)
-    let df: LazyFrame = py
-        .allow_threads(|| {
-            simulate(
-                &mut processes,
-                time_steps_ordered.clone(),
-                initial_values,
-                scenarios as u64,
-                &scheme,
-                &rng_method,
-            )
-        });
+    // 2. Run simulation while releasing the GIL
+    // We map simulation errors to PyRuntimeError
+    let df = py.allow_threads(|| {
+        simulate(
+            &mut processes,
+            time_steps_ordered,
+            initial_values,
+            scenarios as u64,
+            &scheme,
+            &rng_method,
+        )
+    }).map_err(|e| PyRuntimeError::new_err(format!("Simulation failed: {}", e)))?;
 
-    Ok(PyDataFrame(df.collect().unwrap()))
+    // 3. Collect the LazyFrame into a DataFrame
+    // Polars errors are converted to Python-friendly messages
+    let collected_df = df.collect()
+        .map_err(|e| PyRuntimeError::new_err(format!("Polars collection error: {}", e)))?;
+
+    Ok(PyDataFrame(collected_df))
 }
 
 #[pymodule]

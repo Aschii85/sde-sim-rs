@@ -3,8 +3,6 @@ import numpy as np
 import plotly.express as px
 import polars as pl
 
-print(dir(sde_sim_rs))
-
 
 def main():
     initial_values = {"X1": 100.0, "X2": 0.0}

@@ -10,7 +10,6 @@ use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
-use polars::prelude::IntoLazy;
 
 /// Run a batch of simulation paths in parallel and return a concatenated DataFrame.
 ///
@@ -26,7 +25,7 @@ pub fn simulate(
     num_scenarios: u64,
     scheme: &str,
     rng_method: &str,
-) -> polars::prelude::LazyFrame {
+) -> polars::prelude::PolarsResult<polars::prelude::LazyFrame> {
     let mut rng = rand::rng();
     let random_seed: u64 = rng.random();
     let times = timesteps;
@@ -86,10 +85,10 @@ pub fn simulate(
                 }
             }
 
-            filtration.to_dataframe().lazy()
+            filtration.to_lazyframe()
         })
         .collect();
 
     // stack all of the individual scenario frames together
-    polars::prelude::concat(&dfs, polars::prelude::UnionArgs::default()).expect("failed to concatenate results")
+    polars::prelude::concat(&dfs, polars::prelude::UnionArgs::default())
 }
