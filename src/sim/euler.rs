@@ -1,29 +1,37 @@
-use crate::proc::LevyProcess;
+use crate::filtration::ScenarioFiltration;
+use crate::proc::{Process, ProcessUniverse};
 use crate::rng::BaseRng;
-use ordered_float::OrderedFloat;
 
 pub fn euler_iteration(
-    scenario_data: &mut [f64],
-    processes: &mut [Box<LevyProcess>],
-    times: &[OrderedFloat<f64>],
-    time_idx: usize,
+    filtration: &mut ScenarioFiltration,
+    process_universe: &ProcessUniverse,
+    t_idx: usize,
     rng: &mut dyn BaseRng,
 ) {
-    let num_processes = processes.len();
-    let current_time = times[time_idx];
-    let offset = time_idx * num_processes;
-    let current_step_values = scenario_data[offset..offset + num_processes].to_vec();
-    #[allow(clippy::needless_range_loop)]
-    for p_idx in 0..num_processes {
-        let current_val_idx = offset + p_idx;
-        let mut val = scenario_data[current_val_idx];
-        for inc_idx in 0..processes[p_idx].incrementors.len() {
-            // Pass the local copy to the coefficient function
-            let c = (processes[p_idx].coefficients[inc_idx])(&current_step_values, current_time);
-            let x = processes[p_idx].incrementors[inc_idx].sample(time_idx, rng);
-            val += c * x;
+    let current_time = filtration.times[t_idx];
+    let next_time = filtration.times[t_idx + 1];
+
+    // 1. First Pass: Compute all SDE-based (Levy) updates
+    for p_idx in &process_universe.levy_process_indices {
+        if let Process::Levy(levy) = &process_universe.processes[*p_idx] {
+            let mut val = filtration.get(t_idx, *p_idx);
+            for inc_idx in 0..levy.incrementors.len() {
+                // eval updates the internal Slab pointers using t_idx data
+                let c = levy.coefficients[inc_idx]
+                    .eval(current_time, filtration)
+                    .unwrap();
+                let x = levy.incrementors[inc_idx].sample(t_idx, filtration, rng);
+                val += c * x;
+            }
+            filtration.set(t_idx + 1, *p_idx, val);
         }
-        let next_val_idx = (time_idx + 1) * num_processes + p_idx;
-        scenario_data[next_val_idx] = val;
+    }
+
+    // --- PASS 2: Evaluate Algebraic processes using next, t + 1, values ---
+    for p_idx in &process_universe.algebraic_process_indices {
+        if let Process::Algebraic(alg) = &process_universe.processes[*p_idx] {
+            let val = alg.coefficients[0].eval(next_time, filtration).unwrap();
+            filtration.set(t_idx + 1, *p_idx, val);
+        }
     }
 }

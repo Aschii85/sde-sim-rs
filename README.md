@@ -32,7 +32,7 @@ Requires Python version >=3.11,<3.14.
 To build the package locally for, you'll first need to compile the Rust package for local development. The project is set up to use `maturin` and `uv`. This command builds the Rust library and creates a Python wheel that can be used directly in your environment.
 
 ```
-maturin develop --uv --release
+maturin develop --uv --release --features python
 ```
 
 After the compilation is complete, you can run the example to see how the library works. This command uses `uv` to execute the Python example script.

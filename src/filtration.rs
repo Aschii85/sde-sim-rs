@@ -1,88 +1,117 @@
-use crate::proc::util::ProcessesUniverse;
+use crate::proc::ProcessUniverse;
 use ordered_float::OrderedFloat;
+use polars::prelude::*;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
-pub struct Filtration {
-    pub processes_universe: ProcessesUniverse,
-    pub scenarios: Vec<i32>,
-    pub times: Vec<OrderedFloat<f64>>,
-    raw_values: Vec<f64>,
+pub struct ScenarioFiltrationCache {
+    pub time: OrderedFloat<f64>,
+    pub values: BTreeMap<String, f64>,
 }
 
-impl Filtration {
+pub struct ScenarioFiltration {
+    pub scenario: i32,
+    pub times: Vec<OrderedFloat<f64>>,
+    pub process_universe: ProcessUniverse,
+    raw_values: Vec<f64>,
+    time_registry: HashMap<OrderedFloat<f64>, usize>,
+    pub cache: ScenarioFiltrationCache,
+}
+
+impl ScenarioFiltration {
     pub fn new(
-        processes_universe: ProcessesUniverse,
+        scenario: i32,
+        process_universe: ProcessUniverse,
         times: Vec<OrderedFloat<f64>>,
-        scenarios: Vec<i32>,
-        initial_values: Option<HashMap<String, f64>>,
+        initial_values: HashMap<String, f64>,
     ) -> Self {
-        let raw_values =
-            vec![0.0; times.len() * scenarios.len() * processes_universe.processes.len()];
-        let mut f = Filtration {
-            processes_universe,
-            scenarios,
+        let raw_values = vec![0.0; times.len() * process_universe.processes.len()];
+        let time_registry = times.iter().enumerate().map(|(i, t)| (*t, i)).collect();
+        let value_cache = ScenarioFiltrationCache {
+            time: times[0],
+            values: BTreeMap::new(),
+        };
+        let mut scenario_filtration = ScenarioFiltration {
+            scenario,
+            process_universe,
             times,
             raw_values,
+            time_registry,
+            cache: value_cache,
         };
-
-        if let Some(values) = initial_values {
-            let fx_values: HashMap<String, f64> = values.into_iter().collect();
-            f.set_initial_values(fx_values);
+        for (process_name, val) in initial_values.into_iter() {
+            if let Some(process_idx) = scenario_filtration
+                .process_universe
+                .process_registry
+                .get(&process_name)
+            {
+                scenario_filtration.set(0, *process_idx, val);
+            }
         }
-        f
+        scenario_filtration.refresh_cache(scenario_filtration.times[0]);
+        scenario_filtration
     }
 
     #[inline]
-    pub fn get(&self, scenario_idx: usize, time_idx: usize, process_idx: usize) -> f64 {
-        self.raw_values[scenario_idx * self.times.len() * self.processes_universe.processes.len()
-            + time_idx * self.processes_universe.processes.len()
-            + process_idx]
-    }
-
-    pub fn scenario_partitions(&mut self) -> std::slice::ChunksExactMut<'_, f64> {
-        let scenario_size = self.times.len() * self.processes_universe.processes.len();
-        self.raw_values.chunks_exact_mut(scenario_size)
+    pub fn get(&self, time_idx: usize, process_idx: usize) -> f64 {
+        self.raw_values[time_idx * self.process_universe.processes.len() + process_idx]
     }
 
     #[inline]
-    pub fn set(&mut self, scenario_idx: usize, time_idx: usize, process_idx: usize, val: f64) {
-        self.raw_values[scenario_idx
-            * self.times.len()
-            * self.processes_universe.processes.len()
-            + time_idx * self.processes_universe.processes.len()
-            + process_idx] = val;
+    pub fn set(&mut self, time_idx: usize, process_idx: usize, val: f64) {
+        let idx = time_idx * self.process_universe.processes.len() + process_idx;
+        self.raw_values[idx] = val;
     }
 
-    pub fn set_initial_values(&mut self, values: HashMap<String, f64>) {
-        let initial_vals: Vec<f64> = self
-            .processes_universe
-            .processes
-            .iter()
-            .map(|p| values.get(&p.name).copied().unwrap_or(0.0))
-            .collect();
-        for scenario_idx in 0..self.scenarios.len() {
-            for (process_idx, &val) in initial_vals.iter().enumerate() {
-                self.set(scenario_idx, 0, process_idx, val);
-            }
+    pub fn get_time_idx(&self, time: OrderedFloat<f64>) -> Option<&usize> {
+        self.time_registry.get(&time)
+    }
+
+    pub fn refresh_cache(&mut self, time: OrderedFloat<f64>) {
+        self.cache.time = time;
+        self.cache.values.insert("t".to_string(), time.into_inner());
+        let t_idx = self.get_time_idx(time).copied().unwrap_or(0);
+        for (p_name, p_idx) in self.process_universe.process_registry.iter() {
+            self.cache
+                .values
+                .insert(p_name.clone(), self.get(t_idx, *p_idx));
         }
     }
 
-    pub fn to_dataframe(&self) -> polars::prelude::DataFrame {
-        let row_count =
-            self.times.len() * self.scenarios.len() * self.processes_universe.processes.len();
-        let mut times = Vec::with_capacity(row_count);
-        let mut scenarios = Vec::with_capacity(row_count);
-        let mut process_names = Vec::with_capacity(row_count);
-        for &scenario in self.scenarios.iter() {
-            for time in self.times.iter() {
-                for process in self.processes_universe.processes.iter() {
-                    times.push(time.0);
-                    scenarios.push(scenario);
-                    process_names.push(process.name.clone());
-                }
-            }
-        }
-        polars::prelude::df!["time"=>times, "scenario"=>scenarios, "process_name"=>process_names, "value"=>&self.raw_values]
-            .expect("DF error")
+    pub fn to_lazyframe(&self) -> LazyFrame {
+        let num_procs = self.process_universe.processes.len();
+        let num_times = self.times.len();
+
+        // 1. Fixed PlSmallStr by adding .into()
+        // and using StringChunked::from_iter for cleaner collection
+        let process_names: Series = StringChunked::from_iter(
+            self.times
+                .iter()
+                .flat_map(|_| self.process_universe.processes.iter().map(|p| p.name())),
+        )
+        .with_name("process_name".into())
+        .into_series();
+
+        // 2. Fixed Float64Chunked collection
+        // We use Float64Chunked::from_iter and .into() for the name
+        let times: Series = Float64Chunked::from_iter(
+            self.times
+                .iter()
+                .flat_map(|t| std::iter::repeat_n(Some(t.0), num_procs)),
+        )
+        .with_name("time".into())
+        .into_series();
+
+        // 3. Build the DataFrame
+        // Note: The df! macro in 0.51 also expects PlSmallStr for column names
+        // but the macro usually handles string literals via internal conversion.
+        df![
+            "scenario" => [self.scenario].repeat(num_procs * num_times),
+            "time" => times,
+            "process_name" => process_names,
+            "value" => &self.raw_values
+        ]
+        .expect("Failed to create DataFrame")
+        .lazy()
     }
 }

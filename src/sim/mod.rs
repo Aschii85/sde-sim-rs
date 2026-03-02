@@ -1,71 +1,92 @@
 pub mod euler;
 pub mod runge_kutta;
 
-use crate::filtration::Filtration;
-use crate::proc::LevyProcess;
+use crate::filtration::ScenarioFiltration;
+use crate::proc::ProcessUniverse;
 use crate::rng::sobol::SobolEngine;
 use crate::rng::{BaseRng, pseudo::PseudoRng, sobol::SobolRng};
+use ordered_float::OrderedFloat;
 use rand::Rng;
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-// TODO add seed?
-pub fn simulate(filtration: &mut Filtration, scheme: &str, rng_method: &str) {
+/// Run a batch of simulation paths in parallel and return a concatenated DataFrame.
+///
+/// Each scenario is executed independently on its own `ScenarioFiltration`.  The
+/// numerical scheme and RNG algorithm are chosen by the `scheme`/`rng_method`
+/// parameters.  When `rng_method` is "sobol" a shared Sobol engine is used to
+/// avoid rebuilding the sequence for every path.
+pub fn simulate(
+    process_universe: &ProcessUniverse,
+    timesteps: Vec<OrderedFloat<f64>>,
+    initial_values: HashMap<String, f64>,
+    num_scenarios: u64,
+    scheme: &str,
+    rng_method: &str,
+) -> polars::prelude::PolarsResult<polars::prelude::LazyFrame> {
     let mut rng = rand::rng();
     let random_seed: u64 = rng.random();
-
-    let processes = &filtration.processes_universe.processes.clone();
-    let num_increments = filtration.processes_universe.num_stochastic_increments;
-    let times = &filtration.times.clone();
+    let times = timesteps;
     let num_time_deltas = times.len() - 1;
+    let sobol_increments = process_universe.stochastic_registry.len();
+    let sobol_dims = num_time_deltas * sobol_increments;
 
-    // 1. Calculate total dimensions needed for one path
-    let dims = (times.len() - 1) * num_increments;
-
-    // 2. Create the shared engine
+    // shared Sobol engine (only used when rng_method == "sobol")
     let shared_engine = match rng_method {
-        "sobol" => Some(Arc::new(Mutex::new(SobolEngine::new(dims)))),
+        "sobol" => Some(Arc::new(Mutex::new(SobolEngine::new(sobol_dims)))),
         _ => None,
     };
 
-    filtration
-        .scenario_partitions()
-        .enumerate()
-        .collect::<Vec<_>>()
+    let dfs: Vec<polars::prelude::LazyFrame> = (0..num_scenarios)
         .into_par_iter()
-        .for_each(|(s_idx, scenario_slice)| {
-            let mut local_processes: Vec<Box<LevyProcess>> = processes.to_vec();
+        .map(|s_idx| {
+            // build a fresh filtration for this scenario
+            let local_process_universe = process_universe.clone();
+            let mut filtration = ScenarioFiltration::new(
+                s_idx as i32,
+                local_process_universe.clone(),
+                times.clone(),
+                initial_values.clone(),
+            );
+
+            // every scenario gets its own RNG instance
             let mut local_rng: Box<dyn BaseRng> = match rng_method {
                 "sobol" => Box::new(SobolRng::new(
-                    s_idx as u64 + random_seed,
+                    s_idx + random_seed,
                     Arc::clone(
                         shared_engine
                             .as_ref()
                             .expect("Sobol engine not initialized"),
                     ),
-                    num_increments,
+                    sobol_increments,
                     times.len(),
                 )),
-                _ => Box::new(PseudoRng::new(s_idx as u64 + random_seed, num_increments)),
+                _ => Box::new(PseudoRng::new(s_idx + random_seed, sobol_increments)),
             };
+
             for t_idx in 0..num_time_deltas {
                 match scheme {
                     "euler" => euler::euler_iteration(
-                        scenario_slice,
-                        &mut local_processes,
-                        times,
+                        &mut filtration,
+                        &local_process_universe,
                         t_idx,
                         local_rng.as_mut(),
                     ),
                     "runge-kutta" => runge_kutta::runge_kutta_iteration(
-                        scenario_slice,
-                        &mut local_processes,
-                        times,
+                        &mut filtration,
+                        &local_process_universe,
                         t_idx,
                         local_rng.as_mut(),
                     ),
                     _ => unimplemented!(),
                 }
             }
-        });
+
+            filtration.to_lazyframe()
+        })
+        .collect();
+
+    // stack all of the individual scenario frames together
+    polars::prelude::concat(&dfs, polars::prelude::UnionArgs::default())
 }

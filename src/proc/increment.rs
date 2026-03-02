@@ -1,9 +1,19 @@
+use crate::filtration::ScenarioFiltration;
+use crate::func::Function;
 use crate::rng::BaseRng;
 use ordered_float::OrderedFloat;
 
 pub trait Incrementor: Send + Sync + std::fmt::Debug {
-    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng) -> f64;
+    fn sample(
+        &self,
+        time_idx: usize,
+        filtration: &mut ScenarioFiltration,
+        rng: &mut dyn BaseRng,
+    ) -> f64;
     fn clone_box(&self) -> Box<dyn Incrementor>;
+    fn is_wiener(&self) -> bool {
+        false
+    }
 }
 
 impl Clone for Box<dyn Incrementor> {
@@ -12,9 +22,15 @@ impl Clone for Box<dyn Incrementor> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct TimeIncrementor {
     dts: Vec<f64>,
+}
+
+impl std::fmt::Debug for TimeIncrementor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("dt").finish()
+    }
 }
 
 impl TimeIncrementor {
@@ -29,7 +45,12 @@ impl TimeIncrementor {
 
 impl Incrementor for TimeIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, _rng: &mut dyn BaseRng) -> f64 {
+    fn sample(
+        &self,
+        time_idx: usize,
+        _filtration: &mut ScenarioFiltration,
+        _rng: &mut dyn BaseRng,
+    ) -> f64 {
         self.dts[time_idx]
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
@@ -37,10 +58,16 @@ impl Incrementor for TimeIncrementor {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct WienerIncrementor {
     idx: usize,
     sqrt_dts: Vec<f64>,
+}
+
+impl std::fmt::Debug for WienerIncrementor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("dW").field("idx", &self.idx).finish()
+    }
 }
 
 impl WienerIncrementor {
@@ -56,7 +83,15 @@ impl WienerIncrementor {
 
 impl Incrementor for WienerIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng) -> f64 {
+    fn is_wiener(&self) -> bool {
+        true
+    }
+    fn sample(
+        &self,
+        time_idx: usize,
+        _filtration: &mut ScenarioFiltration,
+        rng: &mut dyn BaseRng,
+    ) -> f64 {
         let q = rng.sample(time_idx, self.idx);
         self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q)
     }
@@ -68,35 +103,55 @@ impl Incrementor for WienerIncrementor {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct JumpIncrementor {
-    lambda: f64,
+#[derive(Clone)]
+pub struct PoissonJumpIncrementor {
+    lambda: Box<Function>,
     idx: usize,
     dts: Vec<f64>,
+    ts: Vec<OrderedFloat<f64>>,
 }
 
-impl JumpIncrementor {
-    pub fn new(idx: usize, lambda: f64, timesteps: Vec<OrderedFloat<f64>>) -> Self {
+impl std::fmt::Debug for PoissonJumpIncrementor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("dN").field("idx", &self.idx).finish()
+    }
+}
+
+impl PoissonJumpIncrementor {
+    pub fn new(idx: usize, lambda: Box<Function>, timesteps: Vec<OrderedFloat<f64>>) -> Self {
         let dts: Vec<f64> = timesteps
             .windows(2)
             .map(|w| (w[1] - w[0]).into_inner())
             .collect();
-        Self { lambda, idx, dts }
+        Self {
+            lambda,
+            idx,
+            dts,
+            ts: timesteps,
+        }
     }
 }
 
-impl Incrementor for JumpIncrementor {
+impl Incrementor for PoissonJumpIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng) -> f64 {
+    fn sample(
+        &self,
+        time_idx: usize,
+        filtration: &mut ScenarioFiltration,
+        rng: &mut dyn BaseRng,
+    ) -> f64 {
         let u = rng.sample(time_idx, self.idx);
-        let effective_lambda = self.lambda * self.dts[time_idx];
+        let t = self.ts[time_idx];
+        let dt = self.dts[time_idx];
+        let effective_lambda = self.lambda.eval(t, filtration).unwrap() * dt;
         fast_inverse_poisson_cdf(u, effective_lambda) as f64
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
         Box::new(Self {
-            lambda: self.lambda,
+            lambda: self.lambda.clone(),
             idx: self.idx,
             dts: self.dts.clone(),
+            ts: self.ts.clone(),
         })
     }
 }
