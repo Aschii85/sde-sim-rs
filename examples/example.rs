@@ -1,15 +1,12 @@
 use ordered_float::OrderedFloat;
-use std::collections::HashMap;
-use std::time::Instant;
 use sde_sim_rs::proc::util::parse_equations;
 use sde_sim_rs::sim::simulate;
+use std::collections::HashMap;
+use std::time::Instant;
 
 fn main() {
     // ────── configuration ──────
-    let initial_values = HashMap::from([
-        ("X1".to_string(), 100.0),
-        ("X2".to_string(), 0.0),
-    ]);
+    let initial_values = HashMap::from([("X1".to_string(), 100.0), ("X2".to_string(), 0.0)]);
 
     let processes_equations = vec![
         "dX1 = ( sin(t) ) * dt + (0.01 * X1) * dW1 + (0.001 * X1) * dN1(0.5 * cos(t))".to_string(),
@@ -35,14 +32,14 @@ fn main() {
         time_steps.iter().copied().map(OrderedFloat).collect();
 
     // parse the equations into a ProcessUniverse (same work done in Python)
-    let mut universe = parse_equations(&processes_equations, ordered_steps.clone())
+    let universe = parse_equations(&processes_equations, ordered_steps.clone())
         .expect("failed to parse process equations");
 
     // run the actual simulation; this mirrors the body of `simulate_py`
     let start = Instant::now();
     println!("running {} scenarios with {} rng...", scenarios, rng_method);
     let lf = simulate(
-        &mut universe,
+        &universe,
         ordered_steps.clone(),
         initial_values.clone(),
         scenarios,

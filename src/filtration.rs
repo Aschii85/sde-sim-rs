@@ -1,8 +1,8 @@
 use crate::proc::ProcessUniverse;
 use ordered_float::OrderedFloat;
-use std::{collections::HashMap};
-use std::collections::BTreeMap;
 use polars::prelude::*;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 pub struct ScenarioFiltrationCache {
     pub time: OrderedFloat<f64>,
@@ -40,7 +40,11 @@ impl ScenarioFiltration {
             cache: value_cache,
         };
         for (process_name, val) in initial_values.into_iter() {
-            if let Some(process_idx) = scenario_filtration.process_universe.process_registry.get(&process_name) {
+            if let Some(process_idx) = scenario_filtration
+                .process_universe
+                .process_registry
+                .get(&process_name)
+            {
                 scenario_filtration.set(0, *process_idx, val);
             }
         }
@@ -68,20 +72,22 @@ impl ScenarioFiltration {
         self.cache.values.insert("t".to_string(), time.into_inner());
         let t_idx = self.get_time_idx(time).copied().unwrap_or(0);
         for (p_name, p_idx) in self.process_universe.process_registry.iter() {
-            self.cache.values.insert(p_name.clone(), self.get(t_idx, *p_idx));
+            self.cache
+                .values
+                .insert(p_name.clone(), self.get(t_idx, *p_idx));
         }
-    } 
+    }
 
     pub fn to_lazyframe(&self) -> LazyFrame {
         let num_procs = self.process_universe.processes.len();
         let num_times = self.times.len();
 
-        // 1. Fixed PlSmallStr by adding .into() 
+        // 1. Fixed PlSmallStr by adding .into()
         // and using StringChunked::from_iter for cleaner collection
         let process_names: Series = StringChunked::from_iter(
-            self.times.iter().flat_map(|_| {
-                self.process_universe.processes.iter().map(|p| p.name())
-            })
+            self.times
+                .iter()
+                .flat_map(|_| self.process_universe.processes.iter().map(|p| p.name())),
         )
         .with_name("process_name".into())
         .into_series();
@@ -89,9 +95,9 @@ impl ScenarioFiltration {
         // 2. Fixed Float64Chunked collection
         // We use Float64Chunked::from_iter and .into() for the name
         let times: Series = Float64Chunked::from_iter(
-            self.times.iter().flat_map(|t| {
-                std::iter::repeat(Some(t.0)).take(num_procs)
-            })
+            self.times
+                .iter()
+                .flat_map(|t| std::iter::repeat_n(Some(t.0), num_procs)),
         )
         .with_name("time".into())
         .into_series();

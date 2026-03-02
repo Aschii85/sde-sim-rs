@@ -58,7 +58,6 @@ impl Process {
     }
 }
 
-
 #[derive(Clone)]
 pub struct ProcessUniverse {
     pub processes: Vec<Process>,

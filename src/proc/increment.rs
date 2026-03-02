@@ -1,12 +1,19 @@
-use ordered_float::OrderedFloat;
 use crate::filtration::ScenarioFiltration;
 use crate::func::Function;
 use crate::rng::BaseRng;
+use ordered_float::OrderedFloat;
 
 pub trait Incrementor: Send + Sync + std::fmt::Debug {
-    fn sample(&self, time_idx: usize, filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64;
+    fn sample(
+        &self,
+        time_idx: usize,
+        filtration: &mut ScenarioFiltration,
+        rng: &mut dyn BaseRng,
+    ) -> f64;
     fn clone_box(&self) -> Box<dyn Incrementor>;
-    fn is_wiener(&self) -> bool { false }
+    fn is_wiener(&self) -> bool {
+        false
+    }
 }
 
 impl Clone for Box<dyn Incrementor> {
@@ -38,7 +45,12 @@ impl TimeIncrementor {
 
 impl Incrementor for TimeIncrementor {
     #[inline]
-    fn sample(&self, time_idx: usize, _filtration: &mut ScenarioFiltration, _rng: &mut dyn BaseRng) -> f64 {
+    fn sample(
+        &self,
+        time_idx: usize,
+        _filtration: &mut ScenarioFiltration,
+        _rng: &mut dyn BaseRng,
+    ) -> f64 {
         self.dts[time_idx]
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
@@ -54,9 +66,7 @@ pub struct WienerIncrementor {
 
 impl std::fmt::Debug for WienerIncrementor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("dW")
-            .field("idx", &self.idx)
-            .finish()
+        f.debug_struct("dW").field("idx", &self.idx).finish()
     }
 }
 
@@ -73,8 +83,15 @@ impl WienerIncrementor {
 
 impl Incrementor for WienerIncrementor {
     #[inline]
-    fn is_wiener(&self) -> bool { true }
-    fn sample(&self, time_idx: usize, _filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64 {
+    fn is_wiener(&self) -> bool {
+        true
+    }
+    fn sample(
+        &self,
+        time_idx: usize,
+        _filtration: &mut ScenarioFiltration,
+        rng: &mut dyn BaseRng,
+    ) -> f64 {
         let q = rng.sample(time_idx, self.idx);
         self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q)
     }
@@ -96,9 +113,7 @@ pub struct PoissonJumpIncrementor {
 
 impl std::fmt::Debug for PoissonJumpIncrementor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("dN")
-            .field("idx", &self.idx)
-            .finish()
+        f.debug_struct("dN").field("idx", &self.idx).finish()
     }
 }
 
@@ -108,13 +123,23 @@ impl PoissonJumpIncrementor {
             .windows(2)
             .map(|w| (w[1] - w[0]).into_inner())
             .collect();
-        Self { lambda, idx, dts, ts: timesteps }
+        Self {
+            lambda,
+            idx,
+            dts,
+            ts: timesteps,
+        }
     }
 }
 
 impl Incrementor for PoissonJumpIncrementor {
     #[inline]
-    fn sample(&self, time_idx: usize, filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64 {
+    fn sample(
+        &self,
+        time_idx: usize,
+        filtration: &mut ScenarioFiltration,
+        rng: &mut dyn BaseRng,
+    ) -> f64 {
         let u = rng.sample(time_idx, self.idx);
         let t = self.ts[time_idx];
         let dt = self.dts[time_idx];

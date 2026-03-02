@@ -1,7 +1,6 @@
+use crate::filtration::ScenarioFiltration;
 use fasteval::{Compiler, Evaler, Instruction, Slab};
 use ordered_float::OrderedFloat;
-use crate::filtration::ScenarioFiltration;
-
 
 pub struct Function {
     instruction: Instruction,
@@ -24,16 +23,21 @@ impl Function {
             .map_err(|e| format!("Parse Error: {:?}", e))?;
         let instruction = expr.from(&slab.ps).compile(&slab.ps, &mut slab.cs);
         Ok(Self {
-            instruction: instruction,
-            slab: slab,
+            instruction,
+            slab,
             expr_str: expr_str.to_string(),
         })
     }
 
-    pub fn eval(&self, t: OrderedFloat<f64>, filtration: &mut ScenarioFiltration) -> Result<f64, fasteval::Error> {
+    pub fn eval(
+        &self,
+        t: OrderedFloat<f64>,
+        filtration: &mut ScenarioFiltration,
+    ) -> Result<f64, fasteval::Error> {
         if t != filtration.cache.time {
             filtration.refresh_cache(t);
-        } 
-        self.instruction.eval(&self.slab, &mut filtration.cache.values)
+        }
+        self.instruction
+            .eval(&self.slab, &mut filtration.cache.values)
     }
 }

@@ -17,7 +17,9 @@ pub fn euler_iteration(
             let mut val = filtration.get(t_idx, *p_idx);
             for inc_idx in 0..levy.incrementors.len() {
                 // eval updates the internal Slab pointers using t_idx data
-                let c = levy.coefficients[inc_idx].eval(current_time, filtration).unwrap();
+                let c = levy.coefficients[inc_idx]
+                    .eval(current_time, filtration)
+                    .unwrap();
                 let x = levy.incrementors[inc_idx].sample(t_idx, filtration, rng);
                 val += c * x;
             }
@@ -30,6 +32,6 @@ pub fn euler_iteration(
         if let Process::Algebraic(alg) = &process_universe.processes[*p_idx] {
             let val = alg.coefficients[0].eval(next_time, filtration).unwrap();
             filtration.set(t_idx + 1, *p_idx, val);
-        }   
+        }
     }
 }

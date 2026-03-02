@@ -5,11 +5,11 @@ use crate::filtration::ScenarioFiltration;
 use crate::proc::ProcessUniverse;
 use crate::rng::sobol::SobolEngine;
 use crate::rng::{BaseRng, pseudo::PseudoRng, sobol::SobolRng};
+use ordered_float::OrderedFloat;
 use rand::Rng;
 use rayon::prelude::*;
-use std::sync::{Arc, Mutex};
-use ordered_float::OrderedFloat;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// Run a batch of simulation paths in parallel and return a concatenated DataFrame.
 ///
@@ -17,7 +17,6 @@ use std::collections::HashMap;
 /// numerical scheme and RNG algorithm are chosen by the `scheme`/`rng_method`
 /// parameters.  When `rng_method` is "sobol" a shared Sobol engine is used to
 /// avoid rebuilding the sequence for every path.
-
 pub fn simulate(
     process_universe: &ProcessUniverse,
     timesteps: Vec<OrderedFloat<f64>>,
@@ -49,13 +48,12 @@ pub fn simulate(
                 local_process_universe.clone(),
                 times.clone(),
                 initial_values.clone(),
-
             );
 
             // every scenario gets its own RNG instance
             let mut local_rng: Box<dyn BaseRng> = match rng_method {
                 "sobol" => Box::new(SobolRng::new(
-                    s_idx as u64 + random_seed,
+                    s_idx + random_seed,
                     Arc::clone(
                         shared_engine
                             .as_ref()
@@ -64,7 +62,7 @@ pub fn simulate(
                     sobol_increments,
                     times.len(),
                 )),
-                _ => Box::new(PseudoRng::new(s_idx as u64 + random_seed, sobol_increments)),
+                _ => Box::new(PseudoRng::new(s_idx + random_seed, sobol_increments)),
             };
 
             for t_idx in 0..num_time_deltas {
