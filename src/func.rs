@@ -41,9 +41,7 @@ impl Function {
         // 1. Try to get a mutable reference from the cache immediately.
         // If it exists, this is a Zero-Allocation, Zero-Clone path.
         if t != self.values_cache.0 {
-            // Cache Invalidation: Clear the map if the time has changed.
             self.values_cache.0 = t;
-            self.values_cache.1.clear();
             self.values_cache.1.insert("t".to_string(), t.into_inner());
             let t_idx = filtration.get_time_idx(t).copied().unwrap_or(0);
             for (p_name, p_idx) in filtration.process_universe.process_registry.iter() {
