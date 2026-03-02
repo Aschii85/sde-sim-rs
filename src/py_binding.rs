@@ -1,4 +1,3 @@
-use crate::filtration::Filtration;
 use crate::sim::simulate;
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
@@ -21,30 +20,34 @@ pub fn simulate_py(
         time_steps.iter().copied().map(OrderedFloat).collect();
 
     // 1. Heavy parsing done while holding the GIL (purely CPU bound, usually fast)
-    let processes =
-        crate::proc::util::parse_equations(&processes_equations, time_steps_ordered.clone())
-            .map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                    "Failed to parse process equations: {}",
-                    e
-                ))
-            })?;
-
-    let mut filtration = Filtration::new(
-        processes,
+    let process_names: Vec<String> = initial_values.keys().cloned().collect();
+    let mut processes = crate::proc::util::parse_equations(
+        &processes_equations,
+        &process_names,
         time_steps_ordered.clone(),
-        (1..=scenarios).collect(),
-        Some(initial_values),
-    );
+    )
+    .map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "Failed to parse process equations: {}",
+            e
+        ))
+    })?;
 
-    // 2. Release the GIL so Rayon can scale across all cores
-    py.allow_threads(|| {
-        simulate(&mut filtration, &scheme, &rng_method);
-    });
+    // build the universe and hand off to the shared simulation routine
+    // (the simulator takes ownership of the process universe and time vector)
+    let df: LazyFrame = py
+        .allow_threads(|| {
+            simulate(
+                &mut processes,
+                time_steps_ordered.clone(),
+                Some(initial_values),
+                scenarios as u64,
+                &scheme,
+                &rng_method,
+            )
+        });
 
-    // 3. Convert back to Polars (happens after threads join)
-    let df: DataFrame = filtration.to_dataframe();
-    Ok(PyDataFrame(df))
+    Ok(PyDataFrame(df.collect().unwrap()))
 }
 
 #[pymodule]

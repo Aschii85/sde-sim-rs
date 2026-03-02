@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "sde-sim-rs"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11,<3.15"
 authors = [
   {name = "Alexander Schierbeck-Hansen", email = "aschii85@protonmail.com"},
 ]

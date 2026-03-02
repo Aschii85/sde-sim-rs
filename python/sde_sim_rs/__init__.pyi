@@ -3,7 +3,6 @@ from typing import Literal
 
 import polars as pl
 
-
 def simulate(
     processes_equations: Sequence[str],
     time_steps: Sequence[float],
@@ -11,7 +10,7 @@ def simulate(
     initial_values: Mapping[str, float],
     rng_method: Literal["pseudo", "sobol"] = "pseudo",
     scheme: Literal["euler", "runge-kutta"] = "euler",
-) -> pl.DataFrame: 
+) -> pl.DataFrame:
     """
     Simulates stochastic differential equations (SDEs) using the specified methods.
 
@@ -45,9 +44,11 @@ def simulate(
             method. Defaults to "euler".
 
     Returns:
-        A Polars DataFrame containing the simulated values. The DataFrame has a
-        `time` column and columns for each process, with each row corresponding
-        to a specific time step and scenario.
+        A Polars DataFrame containing the simulated values. The DataFrame is
+        "long"/tidy: every row represents a single `(scenario, time, process)`
+        triple and the associated value.  In other words, the `scenario`
+        dimension has already been appended, which makes it easy to group or
+        aggregate across paths using standard Polars operations.
 
     Raises:
         ValueError: If the process equations are malformed or if initial values
