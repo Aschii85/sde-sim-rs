@@ -85,22 +85,22 @@ impl Incrementor for WienerIncrementor {
 }
 
 #[derive(Clone)]
-pub struct JumpIncrementor {
+pub struct PoissonJumpIncrementor {
     lambda: Box<Function>,
     idx: usize,
     dts: Vec<f64>,
     ts: Vec<OrderedFloat<f64>>,
 }
 
-impl std::fmt::Debug for JumpIncrementor {
+impl std::fmt::Debug for PoissonJumpIncrementor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("dJ")
+        f.debug_struct("dN")
             .field("idx", &self.idx)
             .finish()
     }
 }
 
-impl JumpIncrementor {
+impl PoissonJumpIncrementor {
     pub fn new(idx: usize, lambda: Box<Function>, timesteps: Vec<OrderedFloat<f64>>) -> Self {
         let dts: Vec<f64> = timesteps
             .windows(2)
@@ -110,7 +110,7 @@ impl JumpIncrementor {
     }
 }
 
-impl Incrementor for JumpIncrementor {
+impl Incrementor for PoissonJumpIncrementor {
     #[inline]
     fn sample(&self, time_idx: usize, filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64 {
         let u = rng.sample(time_idx, self.idx);

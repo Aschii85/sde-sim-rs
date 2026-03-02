@@ -12,7 +12,7 @@ fn main() {
     ]);
 
     let processes_equations = vec![
-        "dX1 = ( sin(t) ) * dt + (0.01 * X1) * dW1".to_string(),
+        "dX1 = ( sin(t) ) * dt + (0.01 * X1) * dW1 + (0.001 * X1) * dN1(0.5 * cos(t))".to_string(),
         "X2 = max(X1 - 100.0, 0.0)".to_string(),
     ];
 
