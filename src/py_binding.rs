@@ -20,10 +20,8 @@ pub fn simulate_py(
         time_steps.iter().copied().map(OrderedFloat).collect();
 
     // 1. Heavy parsing done while holding the GIL (purely CPU bound, usually fast)
-    let process_names: Vec<String> = initial_values.keys().cloned().collect();
     let mut processes = crate::proc::util::parse_equations(
         &processes_equations,
-        &process_names,
         time_steps_ordered.clone(),
     )
     .map_err(|e| {
@@ -40,7 +38,7 @@ pub fn simulate_py(
             simulate(
                 &mut processes,
                 time_steps_ordered.clone(),
-                Some(initial_values),
+                initial_values,
                 scenarios as u64,
                 &scheme,
                 &rng_method,

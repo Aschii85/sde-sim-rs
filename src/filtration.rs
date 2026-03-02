@@ -1,6 +1,12 @@
 use crate::proc::ProcessUniverse;
 use ordered_float::OrderedFloat;
 use std::{collections::HashMap};
+use std::collections::BTreeMap;
+
+pub struct ScenarioFiltrationCache {
+    pub time: OrderedFloat<f64>,
+    pub values: BTreeMap<String, f64>,
+}
 
 pub struct ScenarioFiltration {
     pub scenario: i32,
@@ -8,6 +14,7 @@ pub struct ScenarioFiltration {
     pub process_universe: ProcessUniverse,
     raw_values: Vec<f64>,
     time_registry: HashMap<OrderedFloat<f64>, usize>,
+    pub cache: ScenarioFiltrationCache,
 }
 
 impl ScenarioFiltration {
@@ -15,24 +22,28 @@ impl ScenarioFiltration {
         scenario: i32,
         process_universe: ProcessUniverse,
         times: Vec<OrderedFloat<f64>>,
-        initial_values: Option<HashMap<String, f64>>,
+        initial_values: HashMap<String, f64>,
     ) -> Self {
         let raw_values = vec![0.0; times.len() * process_universe.processes.len()];
         let time_registry = times.iter().enumerate().map(|(i, t)| (*t, i)).collect();
+        let value_cache = ScenarioFiltrationCache {
+            time: times[0],
+            values: BTreeMap::new(),
+        };
         let mut scenario_filtration = ScenarioFiltration {
             scenario,
             process_universe,
             times,
             raw_values,
             time_registry,
+            cache: value_cache,
         };
-        if let Some(values) = initial_values {
-            for (process_name, val) in values {
-                if let Some(process_idx) = scenario_filtration.process_universe.process_registry.get(&process_name) {
-                    scenario_filtration.set(0, *process_idx, val);
-                }
+        for (process_name, val) in initial_values.into_iter() {
+            if let Some(process_idx) = scenario_filtration.process_universe.process_registry.get(&process_name) {
+                scenario_filtration.set(0, *process_idx, val);
             }
         }
+        scenario_filtration.refresh_cache(scenario_filtration.times[0]);
         scenario_filtration
     }
 
@@ -50,6 +61,15 @@ impl ScenarioFiltration {
     pub fn get_time_idx(&self, time: OrderedFloat<f64>) -> Option<&usize> {
         self.time_registry.get(&time)
     }
+
+    pub fn refresh_cache(&mut self, time: OrderedFloat<f64>) {
+        self.cache.time = time;
+        self.cache.values.insert("t".to_string(), time.into_inner());
+        let t_idx = self.get_time_idx(time).copied().unwrap_or(0);
+        for (p_name, p_idx) in self.process_universe.process_registry.iter() {
+            self.cache.values.insert(p_name.clone(), self.get(t_idx, *p_idx));
+        }
+    } 
 
     pub fn to_dataframe(&self) -> polars::prelude::DataFrame {
         let num_procs = self.process_universe.processes.len();

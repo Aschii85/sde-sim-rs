@@ -37,8 +37,7 @@ fn main() {
         time_steps.iter().copied().map(OrderedFloat).collect();
 
     // parse the equations into a ProcessUniverse (same work done in Python)
-    let process_names: Vec<String> = initial_values.keys().cloned().collect();
-    let mut universe = parse_equations(&processes_equations, &process_names, ordered_steps.clone())
+    let mut universe = parse_equations(&processes_equations, ordered_steps.clone())
         .expect("failed to parse process equations");
 
     // run the actual simulation; this mirrors the body of `simulate_py`
@@ -47,7 +46,7 @@ fn main() {
     let df: DataFrame = simulate(
         &mut universe,
         ordered_steps.clone(),
-        Some(initial_values.clone()),
+        initial_values.clone(),
         scenarios,
         scheme,
         rng_method,

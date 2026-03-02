@@ -64,4 +64,28 @@ pub struct ProcessUniverse {
     pub processes: Vec<Process>,
     pub process_registry: HashMap<String, usize>,
     pub stochastic_registry: HashMap<String, usize>,
+    pub levy_process_indices: Vec<usize>,
+    pub algebraic_process_indices: Vec<usize>,
+}
+
+impl ProcessUniverse {
+    pub fn new(processes: Vec<Process>, stochastic_registry: HashMap<String, usize>) -> Self {
+        let mut levy_process_indices = Vec::new();
+        let mut algebraic_process_indices = Vec::new();
+        let mut process_registry = HashMap::with_capacity(processes.len());
+        for (idx, proc) in processes.iter().enumerate() {
+            process_registry.insert(proc.name().to_string(), idx);
+            match proc {
+                Process::Levy(_) => levy_process_indices.push(idx),
+                Process::Algebraic(_) => algebraic_process_indices.push(idx),
+            }
+        }
+        Self {
+            processes,
+            process_registry,
+            stochastic_registry,
+            levy_process_indices,
+            algebraic_process_indices,
+        }
+    }
 }

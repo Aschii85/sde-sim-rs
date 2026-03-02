@@ -20,9 +20,9 @@ use polars::prelude::IntoLazy;
 /// avoid rebuilding the sequence for every path.
 
 pub fn simulate(
-    process_universe: &mut ProcessUniverse,
+    process_universe: &ProcessUniverse,
     timesteps: Vec<OrderedFloat<f64>>,
-    initial_values: Option<HashMap<String, f64>>,
+    initial_values: HashMap<String, f64>,
     num_scenarios: u64,
     scheme: &str,
     rng_method: &str,
@@ -44,12 +44,13 @@ pub fn simulate(
         .into_par_iter()
         .map(|s_idx| {
             // build a fresh filtration for this scenario
-            let mut local_process_universe = process_universe.clone();
+            let local_process_universe = process_universe.clone();
             let mut filtration = ScenarioFiltration::new(
                 s_idx as i32,
                 local_process_universe.clone(),
                 times.clone(),
                 initial_values.clone(),
+
             );
 
             // every scenario gets its own RNG instance
@@ -71,13 +72,13 @@ pub fn simulate(
                 match scheme {
                     "euler" => euler::euler_iteration(
                         &mut filtration,
-                        &mut local_process_universe,
+                        &local_process_universe,
                         t_idx,
                         local_rng.as_mut(),
                     ),
                     "runge-kutta" => runge_kutta::runge_kutta_iteration(
                         &mut filtration,
-                        &mut local_process_universe,
+                        &local_process_universe,
                         t_idx,
                         local_rng.as_mut(),
                     ),

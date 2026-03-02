@@ -4,7 +4,7 @@ use crate::func::Function;
 use crate::rng::BaseRng;
 
 pub trait Incrementor: Send + Sync + std::fmt::Debug {
-    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng, filtration: &ScenarioFiltration) -> f64;
+    fn sample(&self, time_idx: usize, filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64;
     fn clone_box(&self) -> Box<dyn Incrementor>;
 }
 
@@ -37,7 +37,7 @@ impl TimeIncrementor {
 
 impl Incrementor for TimeIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, _rng: &mut dyn BaseRng, _filtration: &ScenarioFiltration) -> f64 {
+    fn sample(&self, time_idx: usize, _filtration: &mut ScenarioFiltration, _rng: &mut dyn BaseRng) -> f64 {
         self.dts[time_idx]
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {
@@ -72,7 +72,7 @@ impl WienerIncrementor {
 
 impl Incrementor for WienerIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng, _filtration: &ScenarioFiltration) -> f64 {
+    fn sample(&self, time_idx: usize, _filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64 {
         let q = rng.sample(time_idx, self.idx);
         self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q)
     }
@@ -112,11 +112,11 @@ impl JumpIncrementor {
 
 impl Incrementor for JumpIncrementor {
     #[inline]
-    fn sample(&mut self, time_idx: usize, rng: &mut dyn BaseRng, filtration: &ScenarioFiltration) -> f64 {
+    fn sample(&self, time_idx: usize, filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64 {
         let u = rng.sample(time_idx, self.idx);
         let t = self.ts[time_idx];
         let dt = self.dts[time_idx];
-        let effective_lambda = self.lambda.eval(filtration, t).unwrap() * dt;
+        let effective_lambda = self.lambda.eval(t, filtration).unwrap() * dt;
         fast_inverse_poisson_cdf(u, effective_lambda) as f64
     }
     fn clone_box(&self) -> Box<dyn Incrementor> {

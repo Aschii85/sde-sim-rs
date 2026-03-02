@@ -8,38 +8,25 @@ use std::collections::HashMap;
 /// Result of the parsing process
 pub fn parse_equations(
     equations: &[String],
-    process_names: &[String],
     timesteps: Vec<OrderedFloat<f64>>,
 ) -> Result<ProcessUniverse, String> {
     // Local registry to track stochastic incrementors (dW, dJ) per simulation run
     let mut stochastic_registry: HashMap<String, usize> = HashMap::new();
-    let process_registry: HashMap<String, usize> = process_names
-        .iter()
-        .enumerate()
-        .map(|(idx, name)| (name.clone(), idx))
-        .collect();
     let mut processes = Vec::with_capacity(equations.len());
     for eq in equations {
         processes.push(parse_single_equation(
             eq,
-            process_names,
             timesteps.clone(),
             &mut stochastic_registry,
         )?);
     }
-
-    Ok(ProcessUniverse {
-        processes,
-        process_registry,
-        stochastic_registry,
-    })
+    Ok(ProcessUniverse::new(processes, stochastic_registry))
 }
 
 fn parse_single_equation(
     equation: &str,
-    all_process_names: &[String],
     timesteps: Vec<OrderedFloat<f64>>,
-    registry: &mut HashMap<String, usize>,
+    stochastic_registry: &mut HashMap<String, usize>,
 ) -> Result<Process, String> {
     let parts: Vec<&str> = equation.split('=').collect();
     if parts.len() != 2 {
@@ -50,13 +37,7 @@ fn parse_single_equation(
     let rhs = parts[1].trim();
 
     let process_name = lhs.strip_prefix('d').unwrap_or(lhs);
-    if process_name.is_empty() || !all_process_names.contains(&process_name.to_string()) {
-        return Err(format!(
-            "Invalid process name '{}' in equation '{}', not specified in initial values!",
-            process_name, equation
-        ));
-    }
-
+    
     if lhs.starts_with('d') {
         // Levy process: each term in rhs has the form `(expr) * dIncr`.
         let mut coefficients: Vec<Box<Function>> = Vec::new();
@@ -71,7 +52,7 @@ fn parse_single_equation(
             // create a Function object for the coefficient expression
             let coeff_fn = Box::new(Function::new(expr_str)?);
             // handle the incrementor and indexing
-            let incr = build_incrementor(inc_str, timesteps.clone(), registry)?;
+            let incr = build_incrementor(inc_str, timesteps.clone(), stochastic_registry)?;
             coefficients.push(coeff_fn);
             incrementors.push(incr);
         }
