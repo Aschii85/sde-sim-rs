@@ -27,7 +27,7 @@ Install the latest `sde-sim-rs` version with:
 pip install sde-sim-rs
 ```
 
-Requires Python version >=3.11,<3.14.
+Requires Python version >=3.11,<3.15.
 
 To build the package locally for, you'll first need to compile the Rust package for local development. The project is set up to use `maturin` and `uv`. This command builds the Rust library and creates a Python wheel that can be used directly in your environment.
 
