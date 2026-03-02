@@ -11,69 +11,80 @@ pub fn runge_kutta_iteration(
     let num_processes = process_universe.processes.len();
     let current_time = filtration.times[t_idx];
     let next_time = filtration.times[t_idx + 1];
-    let dt = (filtration.times[t_idx + 1] - filtration.times[t_idx]).into_inner();
+    let dt = (next_time - current_time).into_inner();
     let sqrt_dt = dt.sqrt();
 
-    // Derive the random variable sk (±1) for the stochastic RK scheme.
-    let sk = if rng.sample(t_idx, 0) > 0.5 {
-        1.0
-    } else {
-        -1.0
-    };
+    // 1. Generate the sk random variable (±1) for the stochastic correction
+    let sk = if rng.sample(t_idx, 0) > 0.5 { 1.0 } else { -1.0 };
 
-    let mut current_values = vec![0.0; num_processes];
+    // 2. Pre-sample all increments for this step.
+    // k1 and k2 MUST use the same dW and dN values.
+    let mut step_increments = Vec::with_capacity(num_processes);
     for p_idx in 0..num_processes {
-        current_values[p_idx] = filtration.get(t_idx, p_idx).clone();
+        let mut incs = Vec::new();
+        if let Process::Levy(levy) = &process_universe.processes[p_idx] {
+            for incr in &levy.incrementors {
+                incs.push(incr.sample(t_idx, filtration, rng));
+            }
+        }
+        step_increments.push(incs);
     }
-    let mut intermediate_values = current_values.clone();
+
+    // Capture state at t_idx to avoid repetitive filtration lookups
+    let mut x_t = vec![0.0; num_processes];
+    for i in 0..num_processes {
+        x_t[i] = filtration.get(t_idx, i);
+    }
+
+    // --- STAGE 1: Compute k1 ---
     let mut k1 = vec![0.0; num_processes];
+    for p_idx in 0..num_processes {
+        if let Process::Levy(levy) = &process_universe.processes[p_idx] {
+            for (inc_idx, &d) in step_increments[p_idx].iter().enumerate() {
+                let c = levy.coefficients[inc_idx].eval(current_time, filtration).unwrap();
+                k1[p_idx] += c * d;
+            }
+        }
+    }
+
+    // --- STAGE 2: Compute k2 ---
+    // We evaluate coefficients at the "probed" state (t + dt, x + k1 + perturbation)
     let mut k2 = vec![0.0; num_processes];
-
-    // --- STAGE 1: Compute k1 for Levy Processes ---
+    
+    // First, set a temporary "probed" state in the filtration for t+1
     for p_idx in 0..num_processes {
         if let Process::Levy(levy) = &process_universe.processes[p_idx] {
-            let mut step_k1 = 0.0;
-            for inc_idx in 0..levy.incrementors.len() {
-                let c = (levy.coefficients[inc_idx]).eval(current_time, filtration).unwrap();
-                let d = levy.incrementors[inc_idx].sample(t_idx, filtration, rng);
-
-                step_k1 += if inc_idx == 0 {
-                    c * d
-                } else {
-                    c * (d - sk * sqrt_dt)
-                };
+            // Find the diffusion perturbation (only if dW exists in this process)
+            let mut perturbation = 0.0;
+            for (inc_idx, incr) in levy.incrementors.iter().enumerate() {
+                if incr.is_wiener() {
+                    // This is the core of the Stochastic RK Strong Order 1.0 logic
+                    perturbation += levy.coefficients[inc_idx].eval(current_time, filtration).unwrap() * sk * sqrt_dt;
+                }
             }
-            k1[p_idx] = step_k1;
-            intermediate_values[p_idx] += step_k1;
-            filtration.set(t_idx, p_idx, intermediate_values[p_idx].clone());
+            filtration.set(t_idx + 1, p_idx, x_t[p_idx] + k1[p_idx] + perturbation);
         }
     }
 
-    // --- STAGE 2: Compute k2 for Levy Processes ---
+    // Now compute k2 using the probed state
     for p_idx in 0..num_processes {
         if let Process::Levy(levy) = &process_universe.processes[p_idx] {
-            let mut step_k2 = 0.0;
-            for inc_idx in 0..levy.incrementors.len() {
-                let c = (levy.coefficients[inc_idx]).eval(current_time, filtration).unwrap();
-                let d = levy.incrementors[inc_idx].sample(t_idx, filtration, rng);
-
-                step_k2 += if inc_idx == 0 {
-                    c * d
-                } else {
-                    c * (d + sk * sqrt_dt)
-                };
+            for (inc_idx, &d) in step_increments[p_idx].iter().enumerate() {
+                // Evaluates coefficient at next_time using the state we just set at t+1
+                let c = levy.coefficients[inc_idx].eval(next_time, filtration).unwrap();
+                k2[p_idx] += c * d;
             }
-            k2[p_idx] = step_k2;
         }
     }
 
-    // --- FINAL UPDATE PASS 1: Settle Levy Processes at t + 1 using current ---
+    // --- FINAL UPDATE: Settle Levy Processes ---
     for p_idx in &process_universe.levy_process_indices {
-        let val = current_values[*p_idx] + 0.5 * (k1[*p_idx] + k2[*p_idx]);
-        filtration.set(t_idx + 1, *p_idx, val);
+        let final_val = x_t[*p_idx] + 0.5 * (k1[*p_idx] + k2[*p_idx]);
+        filtration.set(t_idx + 1, *p_idx, final_val);
     }
 
-    // --- FINAL UPDATE PASS 2: Evaluate Algebraic processes using next, t + 1, values ---
+    // --- FINAL UPDATE: Settle Algebraic processes ---
+    // These must be calculated last so they see the final converged Levy values at t+1
     for p_idx in &process_universe.algebraic_process_indices {
         if let Process::Algebraic(alg) = &process_universe.processes[*p_idx] {
             let val = alg.coefficients[0].eval(next_time, filtration).unwrap();

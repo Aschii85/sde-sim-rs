@@ -16,7 +16,7 @@ def main():
         scenarios=10_000,
         initial_values=initial_values,
         rng_method="pseudo",
-        scheme="euler",
+        scheme="runge-kutta",
     )
     print(df)
     for i in range(0, len(initial_values)):

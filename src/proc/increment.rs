@@ -6,6 +6,7 @@ use crate::rng::BaseRng;
 pub trait Incrementor: Send + Sync + std::fmt::Debug {
     fn sample(&self, time_idx: usize, filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64;
     fn clone_box(&self) -> Box<dyn Incrementor>;
+    fn is_wiener(&self) -> bool { false }
 }
 
 impl Clone for Box<dyn Incrementor> {
@@ -72,6 +73,7 @@ impl WienerIncrementor {
 
 impl Incrementor for WienerIncrementor {
     #[inline]
+    fn is_wiener(&self) -> bool { true }
     fn sample(&self, time_idx: usize, _filtration: &mut ScenarioFiltration, rng: &mut dyn BaseRng) -> f64 {
         let q = rng.sample(time_idx, self.idx);
         self.sqrt_dts[time_idx] * fast_inverse_normal_cdf(q)
