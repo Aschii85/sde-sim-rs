@@ -104,21 +104,22 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
-          path: .
+          path: dist
           merge-multiple: true
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: "*"
+          subject-path: "dist/*"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          packages-dir: dist/
           print-hash: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "*"
+          files: "dist/*"
           generate_release_notes: true
