@@ -1,5 +1,5 @@
 [package]
-name = "sde_sim_rs"
+name = "sde-sim-rs"
 version = "0.5.1"
 edition = "2024"
 authors = ["Alexander Schierbeck-Hansen <aschii85@protonmail.com>"]
