@@ -44,7 +44,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        target: [x64, aarch64-pc-windows-msvc] # ARM64 is essential for Windows in 2026
+        target: [x64]
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
