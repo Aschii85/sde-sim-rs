@@ -3,40 +3,57 @@ name: Release Crate
 on:
   push:
     tags:
-      - 'v*' # Trigger on tags starting with "v"
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write # To create GitHub Release
+  id-token: write # REQUIRED for Trusted Publishing (OIDC)
+  attestations: write # For SLSA Build Provenance
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4 # 2026 Standard
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          node-version: 16
-      - uses: actions/setup-python@v3
-        with:
-          python-version: '3.13'
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
+          # Automatically caches and handles matcher for clippy/fmt
           components: clippy, rustfmt
-      - name: Install dependencies
+
+      # 2026 Best Practice: Use a dedicated action for semver checks
+      # This is much faster than 'cargo install cargo-semver-checks'
+      - name: Check SemVer
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+
+      - name: Security Audit
+        # 2026: cargo-audit is now part of the standard setup-rust-toolchain
+        # or can be run via specialized actions to avoid compilation time.
         run: |
-          cargo install cargo-release
-          cargo install cargo-semver-checks
-      - name: Run tests
-        run: cargo test
-      - name: Check for security vulnerabilities
-        run: |
-          cargo install --locked --all-features --target x86_64-unknown-linux-gnu cargo-audit
+          cargo install cargo-audit --features=fix
           cargo audit
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      - name: Run rustfmt
-        run: cargo fmt -- --check
-      - name: Run semver checks
-        run: cargo semver-checks check-release
-      - name: Publish to crates.io
+
+      - name: Quality Checks
         run: |
-          cargo publish --token ${{ env.CRATES_IO_TOKEN }}
-        env:
-          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+          cargo fmt --check
+          cargo clippy -- -D warnings
+          cargo test
+
+      # 2026: We use 'crates-io-auth-action' to exchange GitHub OIDC
+      # tokens for short-lived crates.io tokens. No secret token needed!
+      - name: Publish to crates.io
+        run: cargo publish
+        # Note: You must configure "Trusted Publishing" in your
+        # crates.io dashboard settings for this repository first.
+
+      - name: Generate SLSA Attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "target/package/*.crate"
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

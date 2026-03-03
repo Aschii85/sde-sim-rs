@@ -4,58 +4,46 @@ build-backend = "maturin"
 
 [project]
 name = "sde-sim-rs"
-requires-python = ">=3.11,<3.15"
-authors = [
-  {name = "Alexander Schierbeck-Hansen", email = "aschii85@protonmail.com"},
-]
-description = "Powerful and flexible stochastic differential equation (quasi) Monte-Carlo simulation library written in Rust with Python bindings"
+dynamic = ["version"]
+description = "Powerful and flexible SDE simulation library with Rust-accelerated Monte-Carlo"
 readme = "README.md"
 license = "MIT"
+requires-python = ">=3.10,<4.0"
+authors = [
+    {name = "Alexander Schierbeck-Hansen", email = "aschii85@protonmail.com"},
+]
+# Metadata that helps PyPI users find your library
 classifiers = [
-    'Development Status :: 3 - Alpha',
-    'Intended Audience :: Science/Research',
-    'Intended Audience :: Developers',
-    'Intended Audience :: Financial and Insurance Industry',
-    'License :: OSI Approved :: MIT License',
-    'Programming Language :: Rust',
-    'Programming Language :: Python',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.11',
-    'Programming Language :: Python :: 3.12',
-    'Programming Language :: Python :: 3.13',
-    'Programming Language :: Python :: 3.14',
-    'Programming Language :: Python :: 3 :: Only',
-    'Programming Language :: Python :: Implementation :: CPython',
-    'Topic :: Software Development',
-    'Topic :: Scientific/Engineering',
-    'Typing :: Typed',
-    'Operating System :: Microsoft :: Windows',
-    'Operating System :: Unix',
-    'Operating System :: MacOS',
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering :: Mathematics",
 ]
-dynamic = ["version"]
 dependencies = [
-    "numpy>=1.24.4",
-    "patchelf>=0.17.2.2",
     "polars>=1.8.2",
+    "numpy>=1.24.4",
+    "plotly>=6.6.0",
 ]
-
-[project.urls]
-Homepage = "https://github.com/Aschii85/sde-sim-rs"
-Repository = "https://github.com/Aschii85/sde-sim-rs.git"
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+# Use 'python' feature to trigger the abi3 and extension-module logic we set in Cargo.toml
+features = ["python"]
 python-source = "python"
-module-name = "sde_sim_rs"
-include = [
-    "python/sde_sim_rs/sde_sim_rs.pyi", 
-    "python/sde_sim_rs/py.typed",
+module-name = "sde_sim_rs.sde_sim_rs" # Defines Rust as a submodule
+# Maturin automatically includes .pyi and py.typed if they are in the python-source
+include = ["python/sde_sim_rs/py.typed"]
+
+[tool.uv]
+# 2026 UV Power-move: Automatically rebuild the Rust code when .rs files change
+cache-keys = [
+    { file = "Cargo.toml" },
+    { file = "pyproject.toml" },
+    { file = "src/**/*.rs" }
 ]
 
 [dependency-groups]
 dev = [
+    "pytest>=8.0.0",
     "ruff>=0.12.7",
-    "snakeviz>=2.2.1",
-    "plotly>=6.2.0",
+    "maturin>=1.9.0",
 ]
