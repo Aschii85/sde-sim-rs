@@ -1,5 +1,5 @@
 [package]
-name = "sde-sim-rs"
+name = "sde_sim_rs"
 version = "0.5.0"
 edition = "2024"
 authors = ["Alexander Schierbeck-Hansen <aschii85@protonmail.com>"]
@@ -9,7 +9,6 @@ repository = "https://github.com/Aschii85/sde-sim-rs"
 license = "MIT"
 keywords = ["sde", "monte-carlo", "simulation", "stochastic", "rqmc"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "sde_sim_rs"
 crate-type = ["cdylib", "rlib"]
@@ -31,4 +30,10 @@ sobol = "1.0.2"
 
 [features]
 default = []
-python = ["dep:pyo3", "dep:pyo3-polars", "pyo3/extension-module"]
+# Updated: pyo3-polars/abi3 removed, it's not needed as a separate flag
+python = [
+    "dep:pyo3", 
+    "dep:pyo3-polars", 
+    "pyo3/extension-module", 
+    "pyo3/abi3-py310" 
+]
