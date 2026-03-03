@@ -15,22 +15,18 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # 2026 Standard
+      - uses: actions/checkout@v4 
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          # Automatically caches and handles matcher for clippy/fmt
           components: clippy, rustfmt
 
-      # 2026 Best Practice: Use a dedicated action for semver checks
-      # This is much faster than 'cargo install cargo-semver-checks'
       - name: Check SemVer
         uses: obi1kenobi/cargo-semver-checks-action@v2
 
       - name: Security Audit
-        # 2026: cargo-audit is now part of the standard setup-rust-toolchain
-        # or can be run via specialized actions to avoid compilation time.
+      
         run: |
           cargo install cargo-audit --features=fix
           cargo audit
@@ -40,14 +36,13 @@ jobs:
           cargo fmt --check
           cargo clippy -- -D warnings
           cargo test
-
-      # 2026: We use 'crates-io-auth-action' to exchange GitHub OIDC
-      # tokens for short-lived crates.io tokens. No secret token needed!
+        
+      - name: OpenID Connect Login
+        uses: rust-lang/crates-io-auth-action@v1.0.3
+        
       - name: Publish to crates.io
         run: cargo publish
-        # Note: You must configure "Trusted Publishing" in your
-        # crates.io dashboard settings for this repository first.
-
+        
       - name: Generate SLSA Attestation
         uses: actions/attest-build-provenance@v2
         with:
