@@ -117,9 +117,3 @@ jobs:
         with:
           packages-dir: dist/
           print-hash: true
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: "dist/*"
-          generate_release_notes: true
